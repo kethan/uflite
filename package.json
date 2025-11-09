@@ -1,7 +1,7 @@
 {
 	"name": "uflite",
 	"description": "Lightweight router and service framework",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"type": "module",
 	"source": "./src/index.js",
 	"main": "./dist/index.js",
@@ -30,7 +30,7 @@
 	},
 	"scripts": {
 		"build": "rollup --config rollup.config.js && npm run copy:types",
-		"copy:types": "cp src/index.d.ts dist/index.d.ts",
+		"copy:types": "bunx shx cp src/index.d.ts dist/index.d.ts || true",
 		"test": "bun test test.spec.js"
 	},
 	"devDependencies": {
