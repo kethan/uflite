@@ -1,0 +1,56 @@
+{
+	"name": "uflite",
+	"description": "Lightweight router and service framework",
+	"version": "0.0.1",
+	"type": "module",
+	"source": "./src/index.js",
+	"main": "./dist/index.js",
+	"module": "./dist/index.es.js",
+	"types": "./dist/index.d.ts",
+	"unpkg": "./dist/index.min.js",
+	"umd:main": "./dist/index.umd.js",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"browser": "./dist/index.es.js",
+			"umd": "./dist/index.umd.js",
+			"import": "./dist/index.es.js",
+			"require": "./dist/index.js",
+			"default": "./dist/index.es.js"
+		},
+		"./package.json": "./package.json"
+	},
+	"files": [
+		"dist",
+		"dist/index.d.ts"
+	],
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/kethan/uflite.git"
+	},
+	"scripts": {
+		"build": "rollup --config rollup.config.js && npm run copy:types",
+		"copy:types": "cp src/index.d.ts dist/index.d.ts",
+		"test": "bun test test.spec.js"
+	},
+	"devDependencies": {
+		"@rollup/plugin-terser": "^0.4.4",
+		"rollup": "^4.20.0",
+		"rollup-plugin-bundle-size": "^1.0.3"
+	},
+	"keywords": [
+		"router",
+		"service",
+		"framework",
+		"fetch",
+		"api",
+		"rest",
+		"lightweight"
+	],
+	"author": "Kethan Surana",
+	"license": "ISC",
+	"bugs": {
+		"url": "https://github.com/kethan/uflite/issues"
+	},
+	"homepage": "https://github.com/kethan/uflite#readme"
+}
