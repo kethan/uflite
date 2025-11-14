@@ -35,5 +35,7 @@ const resolve = (pkg, input = "src/index", output = "dist/index") => ({
 });
 
 export default [
-	resolve("uflite")
+	resolve("uflite"),
+	resolve("uflite", "nano/index", "nano/dist/index"),
+	resolve("uflite", "lite/index", "lite/dist/index")
 ]

@@ -1,6 +1,6 @@
 
 import { describe, test, expect, beforeEach } from 'bun:test';
-import { flite, json, text, html, error, status } from './src/index.js';
+import { flite, json, text, html, error, status } from './src';
 
 
 // ===== 1. BASIC ROUTING =====
@@ -179,27 +179,29 @@ describe('Multiple Routers at Same Level', () => {
   });
 
   test('Global 404', async () => {
-    const res = await app.fetch(new Request('http://localhost/unknown'));
-    expect(await res.text()).toBe('Not found');
+    const response = await app.fetch(new Request('http://localhost/unknown'));
+    expect(await response.text()).toBe('Not found')
   });
 });
 
 // ===== 5. MIDDLEWARE =====
 describe('Middleware', () => {
+
   test('Global middleware', async () => {
     const app = flite({
       before: {
-        all: (req) => { req.timestamp = Date.now(); }
+        all: [(req) => { req.timestamp = Date.now(); }]
       },
       after: {
-        all: (res, req) => {
-          res.headers.set('X-Timestamp', req.timestamp);
-          return res;
-        }
+        all: [(res, req) => json(res, {
+          headers: {
+            'X-Timestamp': String(req.timestamp),
+          }
+        })]
       }
     });
 
-    app.get('/test', () => json({ ok: true }));
+    app.get('/test', () => ({ ok: true }));
 
     const res = await app.fetch(new Request('http://localhost/test'));
     expect(res.headers.has('X-Timestamp')).toBe(true);
@@ -208,8 +210,8 @@ describe('Middleware', () => {
   test('Method-specific middleware', async () => {
     const app = flite({
       before: {
-        post: (req) => { req.isPost = true; },
-        get: (req) => { req.isGet = true; }
+        post: [(req) => { req.isPost = true; }],
+        get: [(req) => { req.isGet = true; }]
       }
     });
 
@@ -295,7 +297,7 @@ describe('Error Handling', () => {
   test('Global error handler', async () => {
     const app = flite({
       error: {
-        all: (err) => error(err)
+        all: [(err) => error(err)]
       }
     });
 
@@ -312,8 +314,8 @@ describe('Error Handling', () => {
   test('Method-specific error handler', async () => {
     const app = flite({
       error: {
-        get: (err) => json({ getError: err.message }, { status: 500 }),
-        post: (err) => json({ postError: err.message }, { status: 500 })
+        get: [(err) => json({ getError: err.message }, { status: 500 })],
+        post: [(err) => json({ postError: err.message }, { status: 500 })]
       }
     });
 
@@ -337,7 +339,7 @@ describe('Services - CRUD Operations', () => {
 
   beforeEach(() => {
     app = flite({
-      error: { all: (err) => error(err) }
+      error: { all: [(err) => error(err)] }
     });
 
     app.service('users', {
@@ -442,7 +444,8 @@ describe('Services - CRUD Operations', () => {
   });
 
   test('GET /users/:id 404', async () => {
-    const res = await app.fetch(new Request('http://localhost/users/999'));
+    const response = await app.fetch(new Request('http://localhost/users/999'));
+    const res = await response.json();
     expect(res.status).toBe(404);
   });
 });
@@ -742,7 +745,8 @@ describe('Edge Cases', () => {
     app.get('/fallback', () => text('fallback'));
 
     const res = await app.fetch(new Request('http://localhost/undefined'));
-    expect(res).toBeUndefined();
+    const respone = await res.json()
+    expect(res.status).toBe(404);
   });
 
   test('Return Response directly', async () => {
@@ -1056,7 +1060,9 @@ describe('Service with only custom methods', () => {
 
     // Should not create routes like GET /auth
     const res = await app.fetch(new Request('http://localhost/auth'));
-    expect(res).toBeUndefined(); // No route should match
+    const response = await res.json();
+
+    expect(response.status).toBe(404); // No route should match
   });
 });
 
@@ -1168,9 +1174,10 @@ describe('Router - Basic Routing', () => {
     app.get('/hello', () => ({ message: 'Hello' }));
 
     const req = new Request('http://localhost/not-found');
-    const res = await app.fetch(req);
+    const response = await app.fetch(req);
+    const res = await response.json();
 
-    expect(res).toBeUndefined();
+    expect(res.status).toBe(404);
   });
 });
 
@@ -1268,7 +1275,7 @@ describe('Router - App-level Hooks', () => {
     const req = new Request('http://localhost/test');
     await app.fetch(req);
 
-    expect(calls).toEqual(['after.all', 'after.get']);
+    expect(calls).toEqual(['after.get', 'after.all']);
   });
 
   test('should modify request in before hook', async () => {
@@ -1319,13 +1326,12 @@ describe('Router - Error Handling', () => {
 
     const req = new Request('http://localhost/test');
     const res = await app.fetch(req);
-    const data = await res.json();
 
-    expect(data.caught).toBe(true);
-    expect(data.error).toBe('Test error');
+    expect(res.caught).toBe(true);
+    expect(res.error).toBe('Test error');
   });
 
-  test('should handle StatusError', async () => {
+  test('should handle status', async () => {
     const app = flite();
 
     app.get('/test', () => {
@@ -1334,10 +1340,9 @@ describe('Router - Error Handling', () => {
 
     const req = new Request('http://localhost/test');
     const res = await app.fetch(req);
-    const data = await res.json();
 
     expect(res.status).toBe(400);
-    expect(data.error).toBe('Bad request');
+    expect(await res.json()).toEqual({ status: 400, error: 'Bad request' });
   });
 
   test('should auto-catch uncaught errors', async () => {
@@ -1369,9 +1374,8 @@ describe('Router - Error Handling', () => {
 
     const req = new Request('http://localhost/test');
     const res = await app.fetch(req);
-    const data = await res.json();
 
-    expect(data.afterError).toBe('After error');
+    expect(res.afterError).toBe('After error');
   });
 });
 
@@ -1836,9 +1840,9 @@ describe('Router - Edge Cases', () => {
     app.get('/test', () => undefined);
 
     const req = new Request('http://localhost/test');
-    const res = await app.fetch(req);
-
-    expect(res).toBeUndefined();
+    const response = await app.fetch(req);
+    const res = await response.json();
+    expect(res.status).toBe(404);
   });
 
   test('should handle null response', async () => {
@@ -1846,8 +1850,9 @@ describe('Router - Edge Cases', () => {
     app.get('/test', () => null);
 
     const req = new Request('http://localhost/test');
-    const res = await app.fetch(req);
-    expect(res).toBeUndefined();
+    const response = await app.fetch(req);
+    const res = await response.json();
+    expect(res.status).toBe(404);
   });
 
   test('should handle async handlers', async () => {
@@ -1969,12 +1974,11 @@ test('Mode 1: should run all middleware in chain', async () => {
   });
 
   const response = await app.fetch(new Request('http://localhost/test'), {}, {});
-  const data = await response.json();
 
   // All middleware and handler should be called in order
   expect(calls).toEqual(['auth', 'log', 'handler']);
-  expect(data.user).toEqual({ id: 1, name: 'John' });
-  expect(data.timestamp).toBeDefined();
+  expect(response.user).toEqual({ id: 1, name: 'John' });
+  expect(response.timestamp).toBeDefined();
 });
 
 test('Mode 1: should stop if middleware does not call next', async () => {
@@ -1999,12 +2003,11 @@ test('Mode 1: should stop if middleware does not call next', async () => {
   });
 
   const response = await app.fetch(new Request('http://localhost/test'), {}, {});
-  const data = await response.json();
 
   // Should stop at middleware-2
   expect(calls).toEqual(['middleware-1', 'middleware-2']);
   expect(calls).not.toContain('handler');
-  expect(data.error).toBe('Unauthorized');
+  expect(response.error).toBe('Unauthorized');
 });
 
 test('Mode 1: service hooks should receive next function', async () => {
@@ -2065,10 +2068,9 @@ test('Mode 1: should pass env and ctx through middleware chain', async () => {
     { value: 42 }       // ctx
   );
 
-  const data = await response.json();
 
   expect(calls).toEqual(['env-key: secret', 'ctx-value: 42']);
-  expect(data).toEqual({ envKey: 'secret', ctxValue: 42 });
+  expect(response).toEqual({ envKey: 'secret', ctxValue: 42 });
 });
 
 
@@ -2114,10 +2116,9 @@ test('Mode 1: Error handling with global error handlers', async () => {
     new Request('http://localhost/test?fail=true'),
     {}, {}
   );
-  const data = await response.json();
 
   expect(calls).toEqual(['middleware-1', 'middleware-2', 'error-handler']);
-  expect(data).toEqual({
+  expect(response).toEqual({
     error: 'Access forbidden',
     status: 403,
     path: '/test'
@@ -2127,7 +2128,7 @@ test('Mode 1: Error handling with global error handlers', async () => {
 test('Mode 1: Context sharing across middleware', async () => {
   const calls = [];
 
-  const app = flite({ mode: 1, format: json });
+  const app = flite({ mode: 1 });
 
   // Set up shared state
   app.use(async (req, env, ctx, next) => {
@@ -2160,10 +2161,9 @@ test('Mode 1: Context sharing across middleware', async () => {
     {},
     {}
   );
-  const data = await response.json();
 
   expect(calls).toEqual(['setup-state', 'increment-1', 'increment-2', 'handler']);
-  expect(data.counter).toBe(2);
+  expect(response.counter).toBe(2);
 });
 
 test('Mode 1: Middleware with env bindings (Cloudflare Workers pattern)', async () => {
@@ -2179,7 +2179,7 @@ test('Mode 1: Middleware with env bindings (Cloudflare Workers pattern)', async 
 
     if (cached) {
       calls.push('cache-hit');
-      return JSON.parse(cached);
+      return json(JSON.parse(cached));
     }
 
     calls.push('cache-miss');
@@ -2194,7 +2194,7 @@ test('Mode 1: Middleware with env bindings (Cloudflare Workers pattern)', async 
     const cacheKey = new URL(req.url).pathname;
     await env.CACHE?.put(cacheKey, JSON.stringify(result));
 
-    return result;
+    return json(result);
   });
 
   // Mock KV store
@@ -2230,6 +2230,7 @@ test('Mode 1: Middleware with env bindings (Cloudflare Workers pattern)', async 
 
   expect(calls).toEqual(['check-cache', 'cache-hit']);
   expect(calls).not.toContain('handler');
+
   expect(data2.data).toBe('fresh');
 });
 
@@ -2299,94 +2300,382 @@ test('Mode 1: Service hooks with authorization', async () => {
   expect(result.deleted).toBe(true);
 });
 
-// test('Mode 1: Performance monitoring middleware', async () => {
-//   const calls = [];
-//   const timings = [];
 
-//   const app = Router({ mode: 1, format: json });
+describe('Edge cases', async () => {
 
-//   // Performance monitoring
-//   app.use(async (req, env, ctx, next) => {
-//     calls.push('start-timer');
-//     const start = Date.now();
+  test('empty path', async () => {
+    const app = flite();
+    app.get('', () => text('root'));
 
-//      await next(); // Wait for entire downstream chain
+    const res = await app.fetch(new Request('http://localhost'));
+    expect(await res?.text()).toBe('root');
+  });
 
-//     const duration = Date.now() - start;
-//     calls.push('end-timer');
-//     timings.push(duration);
+  test('dots in path', async () => {
+    const app = flite();
+    app.get('/files/:name', (req) => text(req.params.name));
 
-//     // return result; // Return result upstream
-//   });
+    const res = await app.fetch(new Request('http://localhost/files/script.min.js'));
+    expect(await res?.text()).toBe('script.min.js');
+  });
 
-//   // Work middleware
-//   app.use(async (req, env, ctx, next) => {
-//     calls.push('middleware');
-//     await new Promise(resolve => setTimeout(resolve, 10));
-//     await next(); // Ensure we return next() to propagate promise
-//   });
 
-//   // Route handler
-//   app.get('/test', async (req) => {
-//     calls.push('handler');
-//     await new Promise(resolve => setTimeout(resolve, 5));
-//     return { success: true }; // Return response to stop runner
-//   });
-//   await app.fetch(new Request('http://localhost/test'), {}, {});
+  test('empty query value', async () => {
+    const app = flite();
+    app.get('/search', (req) => json(req.query));
 
-//   console.log(calls);
+    const res = await app.fetch(new Request('http://localhost/search?q='));
+    expect(await res?.json()).toEqual({ q: '' });
+  });
 
-//   // expect(calls).toEqual(['start-timer', 'middleware', 'handler', 'end-timer']);
-//   expect(timings[0]).toBeGreaterThanOrEqual(15); // At least 15ms (10 + 5)
-// });
+  test('query param without value', async () => {
+    const app = flite();
+    app.get('/search', (req) => json(req.query));
 
-// test('Mode 1: Request/Response logging middleware', async () => {
-//   const logs = [];
+    const res = await app.fetch(new Request('http://localhost/search?flag'));
+    expect(await res?.json()).toEqual({ flag: '' }); // URLSearchParams behavior
+  });
 
-//   const app = Router({ mode: 1, format: json });
+  test('encoded query params', async () => {
+    const app = flite();
+    app.get('/search', (req) => json(req.query));
 
-//   // Request logger
-//   app.use(async (req, env, ctx, next) => {
-//     const method = req.method;
-//     const url = new URL(req.url).pathname;
-//     logs.push({ type: 'request', method, url });
+    const res = await app.fetch(new Request('http://localhost/search?name=John%20Doe&email=test%40example.com'));
+    expect(await res?.json()).toEqual({
+      name: 'John Doe',
+      email: 'test@example.com'
+    });
+  });
 
-//     await next();
-//   });
+  test('single item array vs string', async () => {
+    const app = flite();
+    app.get('/search', (req) => json(req.query));
 
-//   app.after = {
-//     all: [
-//       async (result, req, env, ctx, next) => {
-//         logs.push({
-//           type: 'response',
-//           path: new URL(req.url).pathname,
-//           hasData: !!result
-//         });
-//         await next();
-//         return result;
-//       }
-//     ]
-//   };
+    const res = await app.fetch(new Request('http://localhost/search?tag=one'));
+    expect(await res?.json()).toEqual({ tag: 'one' }); // String, not array
+  });
 
-//   app.get('/users', async (req) => {
-//     return { users: [{ id: 1 }, { id: 2 }] };
-//   });
+  test('specific route before param route', async () => {
+    const app = flite();
+    app.get('/users/me', () => text('current user'));
+    app.get('/users/:id', (req) => text(`user ${req.params.id}`));
 
-//   app.post('/users', async (req) => {
-//     return { created: true };
-//   });
+    const res = await app.fetch(new Request('http://localhost/users/me'));
+    expect(await res?.text()).toBe('current user'); // First match wins
+  });
 
-//   await app.fetch(new Request('http://localhost/users'), {}, {});
-//   await app.fetch(
-//     new Request('http://localhost/users', { method: 'POST' }),
-//     {},
-//     {}
-//   );
+  test('wildcard priority', async () => {
+    const app = flite();
+    app.get('/api/users', () => text('users'));
+    app.get('/api/*', () => text('api fallback'));
+    app.get('*', () => text('global fallback'));
 
-//   expect(logs).toEqual([
-//     { type: 'request', method: 'GET', url: '/users' },
-//     { type: 'response', path: '/users', hasData: true },
-//     { type: 'request', method: 'POST', url: '/users' },
-//     { type: 'response', path: '/users', hasData: true }
-//   ]);
-// });
+    const res1 = await app.fetch(new Request('http://localhost/api/users'));
+    expect(await res1?.text()).toBe('users');
+
+    const res2 = await app.fetch(new Request('http://localhost/api/posts'));
+    expect(await res2?.text()).toBe('api fallback');
+
+    const res3 = await app.fetch(new Request('http://localhost/other'));
+    expect(await res3?.text()).toBe('global fallback');
+  });
+
+  test('case sensitive paths', async () => {
+    const app = flite();
+    app.get('/User', () => text('capital'));
+    app.get('/user', () => text('lowercase'));
+
+    const res1 = await app.fetch(new Request('http://localhost/User'));
+    expect(await res1?.text()).toBe('capital');
+
+    const res2 = await app.fetch(new Request('http://localhost/user'));
+    expect(await res2?.text()).toBe('lowercase');
+  });
+
+
+  test('before hook throws synchronously', async () => {
+    const app = flite({
+      before: {
+        all: [() => { throw new Error('sync error'); }]
+      },
+      error: {
+        all: [(err) => text(err.message)]
+      }
+    });
+
+    app.get('/test', () => text('ok'));
+
+    const res = await app.fetch(new Request('http://localhost/test'));
+    expect(await res?.text()).toBe('sync error');
+  });
+
+  test('after hook throws', async () => {
+    const app = flite({
+      after: {
+        all: [() => { throw new Error('after error'); }]
+      },
+      error: {
+        all: [(err) => text(err.message)]
+      }
+    });
+
+    app.get('/test', () => text('ok'));
+
+    const res = await app.fetch(new Request('http://localhost/test'));
+    expect(await res?.text()).toBe('after error');
+  });
+
+  test('error in error hook re-throws', async () => {
+    const app = flite({
+      error: {
+        all: [(err) => { throw new Error('error handler failed'); }]
+      }
+    });
+
+    app.get('/test', () => { throw new Error('original'); });
+
+    await expect(app.fetch(new Request('http://localhost/test')))
+      .rejects.toThrow('error handler failed');
+  });
+
+  test('before hook throws synchronously', async () => {
+    const app = flite({
+      before: {
+        all: [() => { throw new Error('sync error'); }]
+      },
+      error: {
+        all: [(err) => text(err.message)]
+      }
+    });
+
+    app.get('/test', () => text('ok'));
+
+    const res = await app.fetch(new Request('http://localhost/test'));
+    expect(await res?.text()).toBe('sync error');
+  });
+
+  test('after hook throws', async () => {
+    const app = flite({
+      after: {
+        all: [() => { throw new Error('after error'); }]
+      },
+      error: {
+        all: [(err) => text(err.message)]
+      }
+    });
+
+    app.get('/test', () => text('ok'));
+
+    const res = await app.fetch(new Request('http://localhost/test'));
+    expect(await res?.text()).toBe('after error');
+  });
+
+  test('error in error hook re-throws', async () => {
+    const app = flite({
+      error: {
+        all: [(err) => { throw new Error('error handler failed'); }]
+      }
+    });
+
+    app.get('/test', () => { throw new Error('original'); });
+
+    await expect(app.fetch(new Request('http://localhost/test')))
+      .rejects.toThrow('error handler failed');
+  });
+
+  test('concurrent requests are isolated', async () => {
+    const app = flite();
+
+    app.get('/user/:id', (req) => {
+      return new Promise(resolve => {
+        setTimeout(() => {
+          resolve(json({ id: req.params.id }));
+        }, Math.random() * 100);
+      });
+    });
+
+    const results = await Promise.all([
+      app.fetch(new Request('http://localhost/user/1')),
+      app.fetch(new Request('http://localhost/user/2')),
+      app.fetch(new Request('http://localhost/user/3'))
+    ]);
+
+    expect(await results[0].json()).toEqual({ id: '1' });
+    expect(await results[1].json()).toEqual({ id: '2' });
+    expect(await results[2].json()).toEqual({ id: '3' });
+  });
+
+  test('hooks dont share state', async () => {
+    let counter = 0;
+    const app = flite({
+      before: {
+        all: [(req) => {
+          req.counter = ++counter; // Bad practice, but testing isolation
+        }]
+      }
+    });
+
+    app.get('/test', (req) => json({ counter: req.counter }));
+
+    const results = await Promise.all([
+      app.fetch(new Request('http://localhost/test')),
+      app.fetch(new Request('http://localhost/test')),
+      app.fetch(new Request('http://localhost/test'))
+    ]);
+
+    // Each request should have unique counter
+    const counters = await Promise.all(results.map(r => r.json()));
+    expect(new Set(counters.map(c => c.counter)).size).toBe(3);
+  });
+
+
+  test('mounting at same path twice', async () => {
+    const app = flite();
+    const r1 = flite().get('/test', () => text('r1'));
+    const r2 = flite().get('/test', () => text('r2'));
+
+    app.use('/api', r1);
+    app.use('/api', r2);
+
+    const res = await app.fetch(new Request('http://localhost/api/test'));
+    expect(await res?.text()).toBe('r1'); // First wins
+  });
+
+  test('middleware never calls next in mode 1', async () => {
+    const app = flite({ mode: 1 });
+
+    app.use(async (req, next) => {
+      return text('blocked'); // Never calls next
+    });
+
+    app.get('/test', () => text('never reached'));
+
+    const res = await app.fetch(new Request('http://localhost/test'));
+    expect(await res?.text()).toBe('blocked');
+  });
+
+
+  test('many routes dont cause issues', async () => {
+    const app = flite();
+
+    for (let i = 0; i < 1000; i++) {
+      app.get(`/route${i}`, () => text(`route ${i}`));
+    }
+
+    const res = await app.fetch(new Request('http://localhost/route500'));
+    expect(await res?.text()).toBe('route 500');
+  });
+
+  test('service teardown cleans up', async () => {
+    const app = flite();
+    const cleaned = [];
+
+    app.service('users', {
+      async find() { return []; },
+      teardown: () => { cleaned.push('users'); }
+    });
+
+    app.service('posts', {
+      async find() { return []; },
+      teardown: () => { cleaned.push('posts'); }
+    });
+
+    app.teardown();
+
+    expect(cleaned).toEqual(['users', 'posts']);
+  });
+});
+
+test('Mode 1: Performance monitoring middleware', async () => {
+  const calls = [];
+  const timings = [];
+
+  const app = flite({ mode: 1, format: json });
+
+  app.use(
+    async (req, env, ctx, next) => {
+      calls.push('start-timer');
+      const start = Date.now();
+      await next();
+      calls.push('end-timer');
+      timings.push(Date.now() - start);
+    },
+    async (req, env, ctx, next) => {
+      calls.push('middleware');
+      await new Promise(r => setTimeout(r, 10));
+      await next();
+    }
+  );
+
+  app.get('/test', async (req) => {
+    calls.push('handler');
+    await new Promise(r => setTimeout(r, 5));
+    return { success: true };
+  });
+
+  // Route handler
+  app.get('/test', async (req) => {
+    calls.push('handler');
+    await new Promise(resolve => setTimeout(resolve, 5));
+    return { success: true }; // Return response to stop runner
+  });
+  await app.fetch(new Request('http://localhost/test'), {}, {});
+
+  expect(calls).toEqual(['start-timer', 'middleware', 'handler', 'end-timer']);
+  expect(timings[0]).toBeGreaterThanOrEqual(15); // At least 15ms (10 + 5)
+});
+
+test('Mode 1: Request/Response logging middleware', async () => {
+  const logs = [];
+
+  const app = flite({
+    mode: 1,
+    after: {
+      all: [
+        async (result, req, env, ctx, next) => {
+          logs.push({
+            type: 'response',
+            path: new URL(req.url).pathname,
+            hasData: !!result
+          });
+          await next();
+          return result;
+        }
+      ]
+    }
+  });
+
+  // Request logger
+  app.use(async (req, env, ctx, next) => {
+    const method = req.method;
+    console.log(req.method);
+
+    const url = new URL(req.url).pathname;
+    logs.push({ type: 'request', method, url });
+
+    await next();
+  });
+
+  app.get('/users', async (req) => {
+    return { users: [{ id: 1 }, { id: 2 }] };
+  });
+
+  app.post('/users', async (req) => {
+    return { created: true };
+  });
+
+  await app.fetch(new Request('http://localhost/users'), {}, {});
+  await app.fetch(
+    new Request('http://localhost/users', { method: 'POST' }),
+    {},
+    {}
+  );
+
+  expect(logs).toEqual([
+    { type: 'request', method: 'GET', url: '/users' },
+    { type: 'response', path: '/users', hasData: true },
+    { type: 'request', method: 'POST', url: '/users' },
+    { type: 'response', path: '/users', hasData: true }
+  ]);
+
+});

@@ -1,7 +1,7 @@
 {
 	"name": "uflite",
 	"description": "Lightweight router and service framework",
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"type": "module",
 	"source": "./src/index.js",
 	"main": "./dist/index.js",
@@ -18,6 +18,22 @@
 			"require": "./dist/index.js",
 			"default": "./dist/index.es.js"
 		},
+		"/lite": {
+			"types": "./lite/dist/index.d.ts",
+			"browser": "./lite/dist/index.es.js",
+			"umd": "./lite/dist/index.umd.js",
+			"import": "./lite/dist/index.es.js",
+			"require": "./lite/dist/index.js",
+			"default": "./lite/dist/index.es.js"
+		},
+		"/nano": {
+			"types": "./nano/dist/index.d.ts",
+			"browser": "./nano/dist/index.es.js",
+			"umd": "./nano/dist/index.umd.js",
+			"import": "./nano/dist/index.es.js",
+			"require": "./nano/dist/index.js",
+			"default": "./nano/dist/index.es.js"
+		},
 		"./package.json": "./package.json"
 	},
 	"files": [
@@ -30,7 +46,7 @@
 	},
 	"scripts": {
 		"build": "rollup --config rollup.config.js && npm run copy:types",
-		"copy:types": "bunx shx cp src/index.d.ts dist/index.d.ts || true",
+		"copy:types": "bunx shx cp src/index.d.ts dist/index.d.ts || true && bunx shx cp nano/index.d.ts nano/dist/index.d.ts || true && bunx shx cp lite/index.d.ts lite/dist/index.d.ts || true",
 		"test": "bun test test.spec.js"
 	},
 	"devDependencies": {

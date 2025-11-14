@@ -1,219 +1,158 @@
-// index.d.ts
-// Types
-export class StatusE extends Error {
-  status: number;
-  [key: string]: any;
-  constructor(status?: number, message?: string, data?: any);
+// full.d.ts - Complete with services, events, channels
+
+import type { FliteApp } from '../nano';
+import type { FliteConfigWithHooks } from '../lite';
+
+export * from '../lite';
+
+// ============================================
+// RESPONSE HELPERS
+// ============================================
+
+export interface ResponseOptions {
+    status?: number;
+    headers?: Record<string, string>;
+    [key: string]: any;
 }
 
-export const status: typeof StatusE;
+export function response(
+    format?: string,
+    transform?: (body: any) => any
+): (body: any, options?: ResponseOptions) => Response | undefined;
 
-// Utility types
-type NextFunction = (err?: Error | void) => void | Promise<void>;
-type Promisable<T> = T | Promise<T>;
+export function text(body: any, options?: ResponseOptions): Response | undefined;
+export function html(body: any, options?: ResponseOptions): Response | undefined;
+export function json(body: any, options?: ResponseOptions): Response | undefined;
+export function error(status: number, message?: string | object): Response;
+export function error(err: Error & { status?: number }): Response;
 
-// Run function
-export function run<T extends any[] = any[]>(
-  mode?: number,
-  next?: NextFunction,
-  loop?: () => void,
-  i?: number,
-  result?: any
-): (
-  ...fns: Array<(...args: [...T, NextFunction]) => any>
-) => (
-  ...args: T
-) => Promise<any>;
-
-// Response helpers
-type ResponseOptions = ResponseInit & { url?: string };
-
-export function response<T = any>(
-  format?: string,
-  transform?: (body: T) => any
-): (body?: T | Response, options?: ResponseOptions) => Response | undefined;
-
-export const text: (body?: string | Response, options?: ResponseOptions) => Response | undefined;
-export const html: (body?: string | Response, options?: ResponseOptions) => Response | undefined;
-export const json: <T = any>(body?: T | Response, options?: ResponseOptions) => Response | undefined;
-
-export function error(status?: number, body?: any): Response;
-export function error(error: Error): Response;
-
-// Service types
-export interface ServiceParams {
-  [key: string]: any;
+export class status extends Error {
+    status: number;
+    constructor(status: number, message?: string, data?: any);
 }
 
-export interface HookContext<T = any> {
-  app: FliteInstance;
-  service: any;
-  method: string;
-  path: string;
-  params: ServiceParams;
-  id?: any;
-  data?: any;
-  result?: T;
+// ============================================
+// EVENTS
+// ============================================
+
+export interface EventsApp {
+    on(event: string, handler: (...args: any[]) => void): this;
+    off(event: string, handler: (...args: any[]) => void): this;
+    emit(event: string, ...args: any[]): this;
 }
 
-export type HookFunction = (context: HookContext) => Promisable<HookContext | void>;
+export function events<T extends FliteApp>(app: T): T & EventsApp;
 
-export interface Hooks {
-  before?: {
-    all?: HookFunction[];
-    find?: HookFunction[];
-    get?: HookFunction[];
-    create?: HookFunction[];
-    update?: HookFunction[];
-    patch?: HookFunction[];
-    remove?: HookFunction[];
-    [key: string]: HookFunction[] | undefined;
-  };
-  after?: {
-    all?: HookFunction[];
-    find?: HookFunction[];
-    get?: HookFunction[];
-    create?: HookFunction[];
-    update?: HookFunction[];
-    patch?: HookFunction[];
-    remove?: HookFunction[];
-    [key: string]: HookFunction[] | undefined;
-  };
-}
+// ============================================
+// CHANNELS
+// ============================================
 
-export interface Service<T = any> {
-  setup?(app: FliteInstance, name: string): Promisable<void>;
-  teardown?(app: FliteInstance, name: string): Promisable<void>;
-  find?(params?: ServiceParams): Promisable<T[]>;
-  get?(id: any, params?: ServiceParams): Promisable<T>;
-  create?(data: Partial<T>, params?: ServiceParams): Promisable<T>;
-  update?(id: any, data: T, params?: ServiceParams): Promisable<T>;
-  patch?(id: any, data: Partial<T>, params?: ServiceParams): Promisable<T>;
-  remove?(id: any, params?: ServiceParams): Promisable<T>;
-  [key: string]: any;
-}
-
-export interface ServiceWrapper<T = any> {
-  on(event: 'created' | 'patched' | 'updated' | 'removed' | string, handler: (result: T) => void): this;
-  hooks(hooks: Hooks): this;
-  find(params?: ServiceParams): Promise<T[]>;
-  get(id: any, params?: ServiceParams): Promise<T>;
-  create(data: Partial<T>, params?: ServiceParams): Promise<T>;
-  update(id: any, data: T, params?: ServiceParams): Promise<T>;
-  patch(id: any, data: Partial<T>, params?: ServiceParams): Promise<T>;
-  remove(id: any, params?: ServiceParams): Promise<T>;
-  setup(app?: FliteInstance, name?: string): Promise<void>;
-  teardown(app?: FliteInstance, name?: string): Promise<void>;
-  [key: string]: any;
-}
-
-// Channel types
-export interface ChannelConnection {
-  conn: any;
-  data: any;
-}
-
-export interface ChannelFilter {
-  send(event: string, data?: any): void;
+export interface Connection {
+    send?(message: string): void;
+    [key: string]: any;
 }
 
 export interface Channel {
-  connections: Set<ChannelConnection>;
-  join(conn: any, data?: any): Channel;
-  leave(conn: any): Channel;
-  send(event: string, data?: any): Channel;
-  filter(fn: (connData: any, eventData: any) => boolean): ChannelFilter;
+    connections: Set<{ conn: Connection; data?: any }>;
+    join(conn: Connection, data?: any): this;
+    leave(conn: Connection): this;
+    send(event: string, data: any): this;
+    filter(fn: (connData: any, eventData: any) => boolean): {
+        send(event: string, data: any): void;
+    };
 }
 
-// Request types
-export interface FliteRequest extends Request {
-  params: { [key: string]: string };
-  query: { [key: string]: string };
-  proxy?: Request;
+export interface ChannelsApp {
+    channel(name: string): Channel;
 }
 
-// Handler types
-export type RouteHandler = (request: FliteRequest, ...args: any[]) => any;
-export type ErrorHandler = (error: Error, request: FliteRequest, ...args: any[]) => any;
+export function channels<T extends FliteApp>(app: T): T & ChannelsApp;
 
-export interface RouteHandlers {
-  all?: RouteHandler[];
-  get?: RouteHandler[];
-  post?: RouteHandler[];
-  put?: RouteHandler[];
-  patch?: RouteHandler[];
-  delete?: RouteHandler[];
-  head?: RouteHandler[];
-  options?: RouteHandler[];
-  [key: string]: RouteHandler[] | undefined;
+// ============================================
+// SERVICES
+// ============================================
+
+export interface Params {
+    [key: string]: any;
 }
 
-export interface ErrorHandlers {
-  all?: ErrorHandler[];
-  get?: ErrorHandler[];
-  post?: ErrorHandler[];
-  put?: ErrorHandler[];
-  patch?: ErrorHandler[];
-  delete?: ErrorHandler[];
-  head?: ErrorHandler[];
-  options?: ErrorHandler[];
-  [key: string]: ErrorHandler[] | undefined;
+export interface HookContext<T = any> {
+    app: any;
+    service: any;
+    method: string;
+    path: string;
+    params: Params;
+    id?: string | number;
+    data?: any;
+    result?: T;
 }
 
-// Flite configuration
-export interface FliteConfig {
-  routes?: any[];
-  format?: false | ((body: any) => Response | undefined);
-  mode?: number;
-  // services?: Map<string, ServiceWrapper>;
-  // events?: Map<string, Function[]>;
-  // channels?: Map<string, Channel>;
-  // hooks?: Hooks;
-  // before?: RouteHandlers;
-  // after?: RouteHandlers;
-  // error?: ErrorHandlers;
+export type ServiceHook<T = any> =
+    | ((context: HookContext<T>) => void | HookContext<T> | Promise<void | HookContext<T>>)
+    | ((context: HookContext<T>, next: (err?: any) => Promise<void>) => void | HookContext<T> | Promise<void | HookContext<T>>);
+
+export interface ServiceHooks<T = any> {
+    before?: {
+        all?: ServiceHook<T>[];
+        find?: ServiceHook<T>[];
+        get?: ServiceHook<T>[];
+        create?: ServiceHook<T>[];
+        update?: ServiceHook<T>[];
+        patch?: ServiceHook<T>[];
+        remove?: ServiceHook<T>[];
+        [method: string]: ServiceHook<T>[] | undefined;
+    };
+    after?: {
+        all?: ServiceHook<T>[];
+        find?: ServiceHook<T>[];
+        get?: ServiceHook<T>[];
+        create?: ServiceHook<T>[];
+        update?: ServiceHook<T>[];
+        patch?: ServiceHook<T>[];
+        remove?: ServiceHook<T>[];
+        [method: string]: ServiceHook<T>[] | undefined;
+    };
 }
 
-// Flite instance
-export interface FliteInstance {
-  routes: any[];
-
-  // HTTP methods (dynamically generated via Proxy)
-  get(route: string, ...handlers: RouteHandler[]): this;
-  post(route: string, ...handlers: RouteHandler[]): this;
-  put(route: string, ...handlers: RouteHandler[]): this;
-  patch(route: string, ...handlers: RouteHandler[]): this;
-  delete(route: string, ...handlers: RouteHandler[]): this;
-  head(route: string, ...handlers: RouteHandler[]): this;
-  options(route: string, ...handlers: RouteHandler[]): this;
-  all(route: string, ...handlers: RouteHandler[]): this;
-  trace(route: string, ...handlers: RouteHandler[]): this;
-  connect(route: string, ...handlers: RouteHandler[]): this;
-  [method: string]: any;
-
-  // Use method (special handling)
-  use(handler: RouteHandler, ...handlers: RouteHandler[]): this;
-  use(route: string, ...handlers: (RouteHandler | FliteInstance)[]): this;
-
-  // Events
-  on(event: string, handler: (...args: any[]) => void): this;
-  off(event: string, handler: (...args: any[]) => void): this;
-  emit(event: string, ...args: any[]): this;
-
-  // Channels
-  channel(name: string): Channel;
-
-  // Services
-  service<T = any>(name: string): ServiceWrapper<T>;
-  service<T = any>(name: string, service: Service<T>): ServiceWrapper<T>;
-
-  // Lifecycle
-  teardown(): Promise<this>;
-  hooks(hooks: Hooks): this;
-
-  // Fetch handler
-  fetch(request: Request, ...args: any[]): Promise<Response>;
+export interface Service<T = any> {
+    find?(params?: Params): Promise<T[]> | T[];
+    get?(id: string | number, params?: Params): Promise<T> | T;
+    create?(data: Partial<T>, params?: Params): Promise<T> | T;
+    update?(id: string | number, data: T, params?: Params): Promise<T> | T;
+    patch?(id: string | number, data: Partial<T>, params?: Params): Promise<T> | T;
+    remove?(id: string | number, params?: Params): Promise<T> | T;
+    setup?(app: any, path: string): void | Promise<void>;
+    teardown?(app: any, path: string): void | Promise<void>;
+    [method: string]: any;
 }
 
-// Flite factory
-export function flite(config?: FliteConfig): FliteInstance;
+export interface ServiceWrapper<T = any> {
+    find(params?: Params): Promise<T[]>;
+    get(id: string | number, params?: Params): Promise<T>;
+    create(data: Partial<T>, params?: Params): Promise<T>;
+    update(id: string | number, data: T, params?: Params): Promise<T>;
+    patch(id: string | number, data: Partial<T>, params?: Params): Promise<T>;
+    remove(id: string | number, params?: Params): Promise<T>;
+    on(event: 'created' | 'updated' | 'patched' | 'removed', handler: (data: T) => void): this;
+    hooks(hooks: ServiceHooks<T>): this;
+    setup(...args: any[]): Promise<void>;
+    teardown(...args: any[]): Promise<void>;
+    [method: string]: any;
+}
+
+export interface ServicesApp {
+    service<T = any>(name: string): ServiceWrapper<T>;
+    service<T = any>(name: string, service: Service<T>): ServiceWrapper<T>;
+    hooks(hooks: ServiceHooks): this;
+    teardown(): this;
+}
+
+export function services<T extends FliteApp>(app: T): T & ServicesApp;
+
+// ============================================
+// FULL FLITE APP
+// ============================================
+
+export type FullFliteApp = FliteApp & EventsApp & ChannelsApp & ServicesApp;
+
+export function flite(config?: FliteConfigWithHooks): FullFliteApp;
