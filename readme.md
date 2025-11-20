@@ -1,6 +1,5 @@
 # 📁 README.md
 
-````markdown
 # 🪶 μflite
 
 **The ultimate minimal router** - Hono-style middleware + FeathersJS services in ≈2.5 kB.
@@ -31,7 +30,6 @@ npm install uflite
 # or
 bun add uflite
 ```
-````
 
 ---
 
@@ -757,48 +755,6 @@ app.get("/", () => ({ message: "Hello from Node!" }));
 
 serve(app);
 ```
-
----
-
-## 🤝 Contributing
-
-Contributions welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md).
-
----
-
-## 📄 License
-
-MIT © [Kethan Surana](https://github.com/kethan)
-
----
-
-## 🙏 Acknowledgments
-
-Inspired by:
-
-- [itty-router](https://github.com/kwhitley/itty-router) - Minimal routing
-- [Hono](https://hono.dev) - Middleware pattern
-- [FeathersJS](https://feathersjs.com) - Service architecture
-
----
-
-## 📚 Examples
-
-See [/examples](./examples) for:
-
-- REST API with authentication
-- Real-time chat
-- File upload/download
-- SSR with JSX
-- Multi-tenant apps
-- WebSocket integration
-
----
-
-**Built with ❤️ for the edge**
-
-```
-
 ---
 
 ## Key Updates:
@@ -813,7 +769,6 @@ See [/examples](./examples) for:
 ✅ **TypeScript** - Mentioned type support
 
 **Professional, accurate, and complete!** 🚀
-```
 ### Browser (SPA)
 
 ```html
@@ -895,4 +850,45 @@ document.addEventListener('click', (e) => {
 window.addEventListener('popstate', () => app.fetch(new Request(location.origin + location.pathname)).then((Comp) => mount(Comp)).catch(() => mount(ErrorView)))
 app.fetch(new Request(location.origin + location.pathname)).then((Comp) => mount(Comp)).catch(() => mount(ErrorView))
 </script>
+
+
 ```
+---
+
+## 🤝 Contributing
+
+Contributions welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md).
+
+---
+
+## 📄 License
+
+MIT © [Kethan Surana](https://github.com/kethan)
+
+---
+
+## 🙏 Acknowledgments
+
+Inspired by:
+
+- [itty-router](https://github.com/kwhitley/itty-router) - Minimal routing
+- [Hono](https://hono.dev) - Middleware pattern
+- [FeathersJS](https://feathersjs.com) - Service architecture
+
+---
+
+## 📚 Examples
+
+See [/examples](./examples) for:
+
+- REST API with authentication
+- Real-time chat
+- File upload/download
+- SSR with JSX
+- Multi-tenant apps
+- WebSocket integration
+
+---
+
+**Built with ❤️ for the edge**
+---
