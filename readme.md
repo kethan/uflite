@@ -3,7 +3,7 @@
 ````markdown
 # 🪶 μflite
 
-**The ultimate minimal router** - Hono-style middleware + FeathersJS services in <2.5KB.
+**The ultimate minimal router** - Hono-style middleware + FeathersJS services in ≈2.5 kB.
 
 [![tests](https://github.com/kethan/uflite/actions/workflows/node.js.yml/badge.svg)](https://github.com/kethan/uflite/actions/workflows/node.js.yml) 
 [![Version](https://img.shields.io/npm/v/uflite.svg?color=success&style=flat-square)](https://www.npmjs.com/package/uflite) 
@@ -13,7 +13,7 @@
 
 ## ✨ Features
 
-- 🎯 **690 bytes** (nano) - Minimal footprint
+- 🎯 **704 B** (nano) - Minimal footprint
 - 🔗 **Hono-style middleware** - Proper onion pattern execution
 - 🪝 **Global hooks** - Before/after/error lifecycle
 - 🦅 **FeathersJS services** - Real-time APIs with hooks
@@ -254,6 +254,57 @@ const allUsers = await users.find({ role: "admin" });
 const user = await users.get(123);
 ```
 
+### Middleware Templates
+
+- Prefer single-function middleware for most cases (no request mutation).
+- Use paired before/after hooks with a `WeakMap` only when you need cross-phase state.
+
+```javascript
+// 1) Single-function middleware (recommended)
+export const cors = (opts = {}) => async (req, next) => {
+  const origin = req.headers.get('origin') || ''
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: { 'Access-Control-Allow-Origin': origin } })
+  }
+  const res = await next()
+  const headers = new Headers(res.headers)
+  headers.set('Access-Control-Allow-Origin', origin)
+  return new Response(res.body, { status: res.status, statusText: res.statusText, headers })
+}
+
+// Usage
+const app = flite({ mode: 1 })
+app.use(cors())
+app.get('/hello', () => json({ ok: true }))
+```
+
+```javascript
+// 2) Paired before/after hooks using WeakMap for cross-phase state
+const MW = new WeakMap()
+const getCtx = (req) => { let c = MW.get(req); if (!c) { c = {}; MW.set(req, c) } return c }
+
+export const myBefore = (options = {}) => async (req, next) => {
+  getCtx(req).my = { start: Date.now() }
+  if (next) await next()
+}
+
+export const myAfter = async (res, req, next) => {
+  const t = next ? await next() : undefined
+  const r = t ?? res
+  const data = getCtx(req).my
+  if (!data) return r
+  const headers = new Headers(r.headers)
+  return new Response(r.body, { status: r.status, statusText: r.statusText, headers })
+}
+
+// Usage
+const app2 = flite({ mode: 1,
+  before: { all: [myBefore()] },
+  after: { all: [myAfter] }
+})
+app2.get('/hi', () => json({ ok: true }))
+```
+
 ### Service Hooks
 
 ```javascript
@@ -464,6 +515,72 @@ app.get("/throw", () => {
 
 ---
 
+## 🔌 Custom Routers
+
+Provide a minimal `match({ method, path })` to delegate routing to any external library. The function returns `{ handlers, params? }`.
+
+Example (trouter: add + find):
+
+```javascript
+import { flite } from "uflite/lite"
+import Trouter from "trouter"
+
+const tr = new Trouter()
+tr.add('GET', '/users/:id', (req, params) => new Response(JSON.stringify({ id: params.id }), { headers: { 'content-type': 'application/json' } }))
+
+const app = flite({
+  match: ({ method, path }) => {
+    const found = tr.find(method, path)
+    if (!found.handlers.length) return null
+    return { handlers: found.handlers.map(fn => (req) => fn(req, found.params)) }
+  }
+})
+```
+
+itty-router:
+
+```javascript
+import { Router } from "itty-router"
+import { flite } from "uflite/lite"
+
+const itty = Router()
+itty.get("/users/:id", req => new Response(JSON.stringify({ id: req.params.id }), { headers: { "content-type": "application/json" } }))
+
+const app = flite({ match: ({ method, path }) => ({ handlers: [ req => itty.handle(req) ] }) })
+```
+
+Routers with `add`/`match`:
+
+```javascript
+const createMatchFromRoutes = (router, routes) => {
+  for (const [method,, hs, path] of routes) if (method !== 'ALL') router.add(method, path, async req => { for (const f of hs) { const t = await f(req); if (t != null) return t } })
+  return ({ method, path }) => router.match(method, path)
+}
+```
+
+Compatible options include `find-my-way`, `@medley/router`, `koa-router`, `trek-router`, and `trouter`. Hono’s internal routers (Pattern/RegExp/Trie) also expose `add`/`match` and can be wrapped similarly when available.
+
+Hono internal routers (add + match):
+
+```javascript
+// createHonoRouter(name, router)
+// Registers routes via router.add(method, path, handler) and exposes match(method, path)
+const createHonoRouter = (name, router, routes, handler) => {
+  for (const r of routes) router.add(r.method, r.path, handler)
+  return {
+    name: `Hono ${name}`,
+    match: ({ method, path }) => router.match(method, path)
+  }
+}
+
+// Example usage
+// import { PatternRouter } from '@hono/internal-pattern-router'
+// import { RegExpRouter } from '@hono/internal-regexp-router'
+// import { TrieRouter } from '@hono/internal-trie-router'
+// const pattern = createHonoRouter('PatternRouter', new PatternRouter(), app.routes, handler)
+// const app2 = flite({ match: pattern.match })
+```
+
 ## 🧪 Testing
 
 ```javascript
@@ -487,8 +604,9 @@ test("GET /users/:id", async () => {
 
 | Library         | Size (min+gzip) | Features             |
 | --------------- | --------------- | -------------------- |
-| **uflite/lite** | **850 bytes**   | Router + hooks       |
-| **uflite** | **2.5 KB**      | + Services + events  |
+| **uflite/nano** | **704 B**       | Minimal router       |
+| **uflite/lite** | **1.03 kB**     | Router + hooks       |
+| **uflite**      | **2.46 kB**     | + Services + events  |
 | express         | ~15 KB          | Router only          |
 | hono            | ~12 KB          | Router + middleware  |
 | itty-router     | ~900 bytes      | Router only          |
@@ -695,4 +813,86 @@ See [/examples](./examples) for:
 ✅ **TypeScript** - Mentioned type support
 
 **Professional, accurate, and complete!** 🚀
+```
+### Browser (SPA)
+
+```html
+<div id="root"></div>
+<script type="module">
+import { flite } from 'uflite/lite'
+
+const app = flite()
+const html = (s) => new Response(s, { headers: { 'content-type': 'text/html; charset=utf-8' } })
+
+app.get('/', () => html(`<h1>Home</h1><p><a href="/user/42">Go to user</a></p>`))
+app.get('/user/:id', (req) => html(`<h1>User ${req.params.id}</h1><p><a href="/">Back</a></p>`))
+
+const render = async (path) => {
+  const res = await app.fetch(new Request(location.origin + path))
+  if (res) document.getElementById('root').innerHTML = await res.text()
+}
+
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('a')
+  if (!a) return
+  const href = a.getAttribute('href')
+  if (!href || href.startsWith('http')) return
+  e.preventDefault()
+  history.pushState(null, '', href)
+  render(href)
+})
+
+window.addEventListener('popstate', () => render(location.pathname))
+render(location.pathname)
+</script>
+```
+### Browser (React SPA)
+
+```html
+<div id="root"></div>
+<script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+<script type="module">
+import { flite } from 'uflite/lite'
+
+const app = flite()
+
+const Home = () => React.createElement('div', null, [
+  React.createElement('h1', { key: 1 }, 'Home'),
+  React.createElement('p', { key: 2 }, React.createElement('a', { href: '/user/42' }, 'Go to user'))
+])
+
+const User = ({ id }) => React.createElement('div', null, [
+  React.createElement('h1', { key: 1 }, 'User ' + id),
+  React.createElement('p', { key: 2 }, React.createElement('a', { href: '/' }, 'Back'))
+])
+
+app.get('/', () => Home)
+app.get('/user/:id', (req) => {
+  const Bound = () => React.createElement(User, { id: req.params.id })
+  return Bound
+})
+
+const mount = (Comp) => {
+  const rootEl = document.getElementById('root')
+  const el = typeof Comp === 'function' ? React.createElement(Comp) : Comp
+  if (ReactDOM.createRoot) ReactDOM.createRoot(rootEl).render(el)
+  else ReactDOM.render(el, rootEl)
+}
+
+const ErrorView = () => React.createElement('div', null, 'Error')
+
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('a')
+  if (!a) return
+  const href = a.getAttribute('href')
+  if (!href || href.startsWith('http')) return
+  e.preventDefault()
+  history.pushState(null, '', href)
+  app.fetch(new Request(location.origin + href)).then((Comp) => mount(Comp)).catch(() => mount(ErrorView))
+})
+
+window.addEventListener('popstate', () => app.fetch(new Request(location.origin + location.pathname)).then((Comp) => mount(Comp)).catch(() => mount(ErrorView)))
+app.fetch(new Request(location.origin + location.pathname)).then((Comp) => mount(Comp)).catch(() => mount(ErrorView))
+</script>
 ```

@@ -1,6 +1,7 @@
 import { describe, it, expect } from "bun:test";
-import { flite } from "./index.js";
+import { flite } from "../lite/index.js";
 import { json } from '../plugins.js';
+import Trouter from "trouter";
 
 const makeRequest = (path, method = "GET", body) =>
     new Request("http://localhost" + path, {
@@ -914,5 +915,39 @@ describe("CORE - Real-World Patterns", () => {
         const res = await app.fetch(makeRequest("/submit", "POST", { email: "test@example.com" }));
         expect(res.headers.get("Access-Control-Allow-Origin")).toBe("*");
         expect(await res.json()).toEqual({ submitted: true, email: "test@example.com" });
+    });
+});
+
+describe("Routing Precedence", () => {
+    it("specific route wins over wildcard", async () => {
+        const app = flite();
+        app.GET("/users/:id", () => json({ route: "specific" }));
+        app.GET("/users/*", () => json({ route: "wildcard" }));
+
+        const res = await app.fetch(new Request("http://localhost/users/123"));
+        expect(await res.json()).toEqual({ route: "specific" });
+    });
+
+    it("first registered route wins when both match", async () => {
+        const app = flite();
+        app.GET("/a/*", () => json({ route: "first" }));
+        app.GET("/a/:id", () => json({ route: "second" }));
+
+        const res = await app.fetch(new Request("http://localhost/a/1"));
+        expect(await res.json()).toEqual({ route: "first" });
+    });
+});
+
+describe("External Router - match()", () => {
+    it("Trouter delegates via match and returns JSON", async () => {
+        const tr = new Trouter();
+        tr.add('GET', '/trouter/:id', (req, params) => new Response(JSON.stringify({ id: params.id }), { headers: { 'content-type': 'application/json' } }));
+        const app = flite({ match: ({ method, path }) => {
+            const found = tr.find(method, path);
+            if (!found.handlers.length) return null;
+            return { handlers: found.handlers.map(fn => (req) => fn(req, found.params)) };
+        } });
+        const res = await app.fetch(new Request('http://localhost/trouter/7'));
+        expect(await res.json()).toEqual({ id: '7' });
     });
 });

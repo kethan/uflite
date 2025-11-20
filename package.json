@@ -1,7 +1,7 @@
 {
 	"name": "uflite",
 	"description": "Lightweight router and service framework",
-	"version": "0.0.3",
+	"version": "0.1.0",
 	"type": "module",
 	"source": "./src/index.js",
 	"main": "./dist/index.js",
@@ -18,7 +18,7 @@
 			"require": "./dist/index.js",
 			"default": "./dist/index.es.js"
 		},
-		"/lite": {
+		"./lite": {
 			"types": "./lite/dist/index.d.ts",
 			"browser": "./lite/dist/index.es.js",
 			"umd": "./lite/dist/index.umd.js",
@@ -26,7 +26,7 @@
 			"require": "./lite/dist/index.js",
 			"default": "./lite/dist/index.es.js"
 		},
-		"/nano": {
+		"./nano": {
 			"types": "./nano/dist/index.d.ts",
 			"browser": "./nano/dist/index.es.js",
 			"umd": "./nano/dist/index.umd.js",
@@ -47,12 +47,20 @@
 	"scripts": {
 		"build": "rollup --config rollup.config.js && npm run copy:types",
 		"copy:types": "bunx shx cp src/index.d.ts dist/index.d.ts || true && bunx shx cp nano/index.d.ts nano/dist/index.d.ts || true && bunx shx cp lite/index.d.ts lite/dist/index.d.ts || true",
-		"test": "bun test test.spec.js"
+		"test": "bun test",
+		"bench": "bun run bench/bench.js",
+		"bench:cmp": "bun run bench/bench-cmp.js",
+		"bench:mitata": "bun run bench/bench-mitata.js"
 	},
+	"dependencies": {},
 	"devDependencies": {
 		"@rollup/plugin-terser": "^0.4.4",
 		"rollup": "^4.20.0",
-		"rollup-plugin-bundle-size": "^1.0.3"
+		"rollup-plugin-bundle-size": "^1.0.3",
+		"mitata": "^0.1.11",
+		"hono": "^4.4.0",
+		"itty-router": "^4.0.0",
+		"trouter": "^3.2.0"
 	},
 	"keywords": [
 		"router",

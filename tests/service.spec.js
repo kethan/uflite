@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "bun:test";
-import { flite } from "./src/index.js";
-import { services } from './plugins.js';
+import { flite } from "../src/index.js";
+import { services } from '../plugins.js';
 
 const makeRequest = (path, method = "GET", body) =>
     new Request("http://localhost" + path, {

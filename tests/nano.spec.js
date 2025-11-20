@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "bun:test";
-import { flite } from "./index.js";
+import { flite } from "../nano/index.js";
 import { run } from '../plugins.js';
 
 const makeRequest = (path, method = "GET", body) =>

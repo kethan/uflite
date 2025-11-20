@@ -1,8 +1,8 @@
 // utils.spec.js - 39 comprehensive test cases
 
 import { describe, it, expect, beforeEach } from "bun:test";
-import { events, channels, lead, mount, compile, run } from "./plugins.js";
-import { flite } from "./nano/index.js";
+import { events, channels, lead, mount, compile, run } from "../plugins.js";
+import { flite } from "../nano/index.js";
 
 // ============================================
 // RUN FUNCTION - 8 tests

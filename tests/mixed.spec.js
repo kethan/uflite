@@ -1,6 +1,6 @@
 
 import { describe, test, expect, beforeEach } from 'bun:test';
-import { flite, json, text, html, error, status } from './src';
+import { flite, json, text, html, error, status } from '../src';
 
 
 // ===== 1. BASIC ROUTING =====
@@ -2678,4 +2678,94 @@ test('Mode 1: Request/Response logging middleware', async () => {
     { type: 'response', path: '/users', hasData: true }
   ]);
 
+});
+
+// ===== 10.1 SERVICE HOOK ORDER =====
+describe('Service Hook Order', () => {
+  test('before hooks run app → service; all before method', async () => {
+    const app = flite({ error: { all: (err) => error(err) } });
+    const order = [];
+
+    app.hooks({
+      before: {
+        all: [ctx => { order.push('app.before.all'); }],
+        create: [ctx => { order.push('app.before.create'); }]
+      }
+    });
+
+    app.service('items', {
+      async create(data) { order.push('method'); return data; }
+    });
+
+    app.service('items').hooks({
+      before: {
+        all: [ctx => { order.push('service.before.all'); }],
+        create: [ctx => { order.push('service.before.create'); }]
+      }
+    });
+
+    await app.fetch(new Request('http://localhost/items', { method: 'POST', body: JSON.stringify({ a: 1 }) }));
+    expect(order).toEqual([
+      'app.before.all',
+      'app.before.create',
+      'service.before.all',
+      'service.before.create',
+      'method'
+    ]);
+  });
+
+  test('after hooks run service → app; method before after chain', async () => {
+    const app = flite({ error: { all: (err) => error(err) } });
+    const order = [];
+
+    app.hooks({
+      after: {
+        create: [ctx => { order.push('app.after.create'); }],
+        all: [ctx => { order.push('app.after.all'); }]
+      }
+    });
+
+    app.service('items', {
+      async create(data) { order.push('method'); return data; }
+    });
+
+    app.service('items').hooks({
+      after: {
+        create: [ctx => { order.push('service.after.create'); }],
+        all: [ctx => { order.push('service.after.all'); }]
+      }
+    });
+
+    await app.fetch(new Request('http://localhost/items', { method: 'POST', body: JSON.stringify({ a: 1 }) }));
+    expect(order).toEqual([
+      'method',
+      'service.after.create',
+      'service.after.all',
+      'app.after.create',
+      'app.after.all'
+    ]);
+  });
+});
+
+// ===== 10.2 SERVICE EVENTS & AFTER HOOKS =====
+describe('Service Events reflect after hook result', () => {
+  test('created event receives modified result from after hooks', async () => {
+    const app = flite({ error: { all: (err) => error(err) } });
+    let eventPayload;
+
+    app.service('messages', {
+      async create(data) { return { id: '1', ...data }; }
+    });
+
+    app.service('messages').hooks({
+      after: {
+        create: [ctx => { ctx.result.tag = 'hooked'; }]
+      }
+    });
+
+    app.service('messages').on('created', d => { eventPayload = d; });
+
+    await app.fetch(new Request('http://localhost/messages', { method: 'POST', body: JSON.stringify({ text: 'Hi' }) }));
+    expect(eventPayload).toEqual({ id: '1', text: 'Hi', tag: 'hooked' });
+  });
 });
