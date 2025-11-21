@@ -51,4 +51,4 @@ export interface FliteApp<Req = IRequest> {
 export function run<T = any>(mode?: 0 | 1): (...handlers: Function[]) => (...args: any[]) => Promise<T | undefined>;
 
 export function flite<Req = IRequest>(config?: FliteConfig<Req>): FliteApp<Req>;
-// No default export; use named export `flite`
+export default flite;

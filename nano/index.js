@@ -21,7 +21,7 @@ export const flite = ({ routes = [], ...others } = {}) => ({
     }),
     routes,
     ...others,
-    fetch: async (request, ...args) => {
+  fetch: async (request, ...args) => {
         const url = new URL(request.url), path = url.pathname, mt = request.method, exec = run(others.mode);
         let result, match;
         request.query = { __proto__: null };
@@ -40,5 +40,7 @@ export const flite = ({ routes = [], ...others } = {}) => ({
                 }
         }
         return result;
-    }
+  }
 });
+
+export default flite;

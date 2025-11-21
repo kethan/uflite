@@ -115,3 +115,5 @@ export const flite = ({ routes = [], before, after, error, ...others } = {}) => 
   };
   return api;
 };
+
+export default flite;

@@ -156,3 +156,4 @@ export function services<T extends FliteApp>(app: T): T & ServicesApp;
 export type FullFliteApp = FliteApp & EventsApp & ChannelsApp & ServicesApp;
 
 export function flite(config?: FliteConfigWithHooks): FullFliteApp;
+export default flite;

@@ -53,3 +53,4 @@ export interface FliteConfigWithHooks<Req = IRequest> extends HooksConfig<Req> {
 }
 
 export function flite<Req = IRequest>(config?: FliteConfigWithHooks<Req>): FliteApp<Req>;
+export default flite;

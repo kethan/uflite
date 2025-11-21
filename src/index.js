@@ -25,3 +25,4 @@ export const flite = ({
             all: [(err) => error(err.status || 500, err.message)]
         }
     }))));
+export default flite;
