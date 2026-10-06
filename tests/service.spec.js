@@ -545,3 +545,484 @@ describe("Services Plugin - Context", () => {
         expect(capturedCtx.result).toEqual({ id: 1, name: 'Test' });
     });
 });
+
+it('runs service error hook for create', async () => {
+  const app = flite()
+  const calls = []
+
+  const users = app.service('users', {
+    async create() {
+      throw new Error('create failed')
+    }
+  })
+
+  users.hooks({
+    error: {
+      create: [
+        ctx => {
+          calls.push('service-create')
+          expect(ctx.error.message).toBe('create failed')
+          return ctx
+        }
+      ]
+    }
+  })
+
+  await expect(users.create({ name: 'Test' }))
+    .rejects.toThrow('create failed')
+
+  expect(calls).toEqual(['service-create'])
+})
+
+
+it('runs service error.all for every failing method', async () => {
+  const app = flite()
+  const calls = []
+
+  const users = app.service('users', {
+    async get() {
+      throw new Error('get failed')
+    }
+  })
+
+  users.hooks({
+    error: {
+      all: [
+        ctx => {
+          calls.push(ctx.method)
+          return ctx
+        }
+      ]
+    }
+  })
+
+  await expect(users.get('123'))
+    .rejects.toThrow('get failed')
+
+  expect(calls).toEqual(['get'])
+})
+
+
+it('runs app error hook for a failing service method', async () => {
+  const app = flite()
+  const calls = []
+
+  app.hooks({
+    error: {
+      create: [
+        ctx => {
+          calls.push('app-create')
+          expect(ctx.error.message).toBe('create failed')
+          return ctx
+        }
+      ]
+    }
+  })
+
+  app.service('users', {
+    async create() {
+      throw new Error('create failed')
+    }
+  })
+
+  await expect(
+    app.service('users').create({ name: 'Test' })
+  ).rejects.toThrow('create failed')
+
+  expect(calls).toEqual(['app-create'])
+})
+
+
+it('runs app error.all for a failing service method', async () => {
+  const app = flite()
+  const calls = []
+
+  app.hooks({
+    error: {
+      all: [
+        ctx => {
+          calls.push(ctx.method)
+          return ctx
+        }
+      ]
+    }
+  })
+
+  const users = app.service('users', {
+    async remove() {
+      throw new Error('remove failed')
+    }
+  })
+
+  await expect(users.remove('123'))
+    .rejects.toThrow('remove failed')
+
+  expect(calls).toEqual(['remove'])
+})
+
+
+it('runs service error before app error', async () => {
+  const app = flite()
+  const calls = []
+
+  const users = app.service('users', {
+    async get() {
+      throw new Error('get failed')
+    }
+  })
+
+  users.hooks({
+    error: {
+      all: [
+        ctx => {
+          calls.push('service')
+          return ctx
+        }
+      ]
+    }
+  })
+
+  app.hooks({
+    error: {
+      all: [
+        ctx => {
+          calls.push('app')
+          return ctx
+        }
+      ]
+    }
+  })
+
+  await expect(users.get('123'))
+    .rejects.toThrow('get failed')
+
+  expect(calls).toEqual(['service', 'app'])
+})
+
+
+it('runs method-specific and all error hooks', async () => {
+  const app = flite()
+  const calls = []
+
+  const users = app.service('users', {
+    async patch() {
+      throw new Error('patch failed')
+    }
+  })
+
+  users.hooks({
+    error: {
+      patch: [
+        ctx => {
+          calls.push('patch')
+          return ctx
+        }
+      ],
+      all: [
+        ctx => {
+          calls.push('all')
+          return ctx
+        }
+      ]
+    }
+  })
+
+  await expect(users.patch('123', { name: 'Test' }))
+    .rejects.toThrow('patch failed')
+
+  expect(calls).toEqual(['patch', 'all'])
+})
+
+
+it('provides error hook context', async () => {
+  const app = flite()
+  let context
+
+  const users = app.service('users', {
+    async create(data) {
+      throw new Error('create failed')
+    }
+  })
+
+  users.hooks({
+    error: {
+      create: [
+        ctx => {
+          context = ctx
+          return ctx
+        }
+      ]
+    }
+  })
+
+  await expect(users.create({ name: 'Test' }))
+    .rejects.toThrow('create failed')
+
+  expect(context.app).toBe(app)
+  expect(context.service).toBeDefined()
+  expect(context.method).toBe('create')
+  expect(context.path).toBe('users')
+  expect(context.data).toEqual({ name: 'Test' })
+  expect(context.error).toBeInstanceOf(Error)
+  expect(context.error.message).toBe('create failed')
+})
+
+
+it('preserves the original error', async () => {
+  const app = flite()
+  const error = new Error('original error')
+
+  const users = app.service('users', {
+    async get() {
+      throw error
+    }
+  })
+
+  users.hooks({
+    error: {
+      all: [
+        ctx => {
+          expect(ctx.error).toBe(error)
+          return ctx
+        }
+      ]
+    }
+  })
+
+  await expect(users.get('123'))
+    .rejects.toBe(error)
+})
+
+
+it('propagates an error thrown by an error hook', async () => {
+  const app = flite()
+  const hookError = new Error('error hook failed')
+
+  const users = app.service('users', {
+    async get() {
+      throw new Error('service failed')
+    }
+  })
+
+  users.hooks({
+    error: {
+      all: [
+        () => {
+          throw hookError
+        }
+      ]
+    }
+  })
+
+  await expect(users.get('123'))
+    .rejects.toBe(hookError)
+})
+
+
+it('does not run error hooks on successful calls', async () => {
+  const app = flite()
+  const calls = []
+
+  const users = app.service('users', {
+    async get() {
+      return { id: '123' }
+    }
+  })
+
+  users.hooks({
+    error: {
+      all: [
+        () => {
+          calls.push('error')
+          return undefined
+        }
+      ]
+    }
+  })
+
+  const result = await users.get('123')
+
+  expect(result).toEqual({ id: '123' })
+  expect(calls).toEqual([])
+})
+
+
+it('runs service error hooks without app error hooks', async () => {
+  const app = flite()
+  const calls = []
+
+  const users = app.service('users', {
+    async remove() {
+      throw new Error('remove failed')
+    }
+  })
+
+  users.hooks({
+    error: {
+      all: [
+        () => {
+          calls.push('service')
+          return undefined
+        }
+      ]
+    }
+  })
+
+  await expect(users.remove('123'))
+    .rejects.toThrow('remove failed')
+
+  expect(calls).toEqual(['service'])
+})
+
+
+it('runs app error hooks without service error hooks', async () => {
+  const app = flite()
+  const calls = []
+
+  app.hooks({
+    error: {
+      all: [
+        () => {
+          calls.push('app')
+          return undefined
+        }
+      ]
+    }
+  })
+
+  const users = app.service('users', {
+    async update() {
+      throw new Error('update failed')
+    }
+  })
+
+  await expect(users.update('123', { name: 'Test' }))
+    .rejects.toThrow('update failed')
+
+  expect(calls).toEqual(['app'])
+})
+
+
+it('runs error hooks for all service methods', async () => {
+  const methods = ['find', 'get', 'create', 'patch', 'update', 'remove']
+
+  for (const method of methods) {
+    const app = flite()
+    const calls = []
+
+    const users = app.service('users', {
+      async find() {
+        throw new Error('find failed')
+      },
+      async get() {
+        throw new Error('get failed')
+      },
+      async create() {
+        throw new Error('create failed')
+      },
+      async patch() {
+        throw new Error('patch failed')
+      },
+      async update() {
+        throw new Error('update failed')
+      },
+      async remove() {
+        throw new Error('remove failed')
+      }
+    })
+
+    users.hooks({
+      error: {
+        all: [
+          ctx => {
+            calls.push(ctx.method)
+            return ctx
+          }
+        ]
+      }
+    })
+
+    const args = {
+      find: [],
+      get: ['123'],
+      create: [{ name: 'Test' }],
+      patch: ['123', { name: 'Test' }],
+      update: ['123', { name: 'Test' }],
+      remove: ['123']
+    }
+
+    await expect(users[method](...args[method]))
+      .rejects.toThrow(`${method} failed`)
+
+    expect(calls).toEqual([method])
+  }
+})
+
+
+it('does not run error hooks for another service', async () => {
+  const app = flite()
+  const calls = []
+
+  const users = app.service('users', {
+    async get() {
+      throw new Error('users failed')
+    }
+  })
+
+  app.service('posts', {
+    async get() {
+      throw new Error('posts failed')
+    }
+  })
+
+  users.hooks({
+    error: {
+      all: [
+        () => {
+          calls.push('users')
+          return undefined
+        }
+      ]
+    }
+  })
+
+  await expect(
+    app.service('posts').get('123')
+  ).rejects.toThrow('posts failed')
+
+  expect(calls).toEqual([])
+})
+
+
+it('runs app error hook for errors from multiple services', async () => {
+  const app = flite()
+  const calls = []
+
+  app.hooks({
+    error: {
+      all: [
+        ctx => {
+          calls.push(ctx.path)
+          return ctx
+        }
+      ]
+    }
+  })
+
+  const users = app.service('users', {
+    async get() {
+      throw new Error('users failed')
+    }
+  })
+
+  const posts = app.service('posts', {
+    async get() {
+      throw new Error('posts failed')
+    }
+  })
+
+  await expect(users.get('1')).rejects.toThrow('users failed')
+  await expect(posts.get('1')).rejects.toThrow('posts failed')
+
+  expect(calls).toEqual(['users', 'posts'])
+})

@@ -105,9 +105,9 @@ export const
 // ============================================
 
 export const services = (app, m = new Map()) => {
-    const ah = { before: {}, after: {} };
+    const ah = { before: {}, after: {}, error: {} };
 
-    app.hooks = h => (h.before && Object.assign(ah.before, h.before), h.after && Object.assign(ah.after, h.after), app);
+    app.hooks = h => (h.before && Object.assign(ah.before, h.before), h.after && Object.assign(ah.after, h.after), h.error && Object.assign(ah.error, h.error), app);
 
     app.service = (n, s) => {
         if (!s) {
@@ -116,8 +116,7 @@ export const services = (app, m = new Map()) => {
             return x;
         }
 
-        const ev = new Map(), sh = { before: {}, after: {} };
-
+        const ev = new Map(), sh = { before: {}, after: {}, error: {} };
         s.setup?.(app, n);
 
         const runH = async (h, c) => {
@@ -134,14 +133,25 @@ export const services = (app, m = new Map()) => {
             const b = [...(ah.before?.all || []), ...(ah.before?.[mt] || []), ...(sh.before?.all || []), ...(sh.before?.[mt] || [])];
             b.length && await runH(b, c);
 
-            c.result = await s[mt]?.(
-                ...(/find|get|create|patch|update|remove/.test(mt)
-                    ? (mt === 'find' ? [c.params]
-                        : /get|remove/.test(mt) ? [c.id, c.params]
-                            : mt === 'create' ? [c.data, c.params]
-                                : [c.id, c.data, c.params])
-                    : a)
-            );
+            try {
+                c.result = await s[mt]?.(
+                    ...(/find|get|create|patch|update|remove/.test(mt)
+                        ? (mt === 'find' ? [c.params]
+                            : /get|remove/.test(mt) ? [c.id, c.params]
+                                : mt === 'create' ? [c.data, c.params]
+                                    : [c.id, c.data, c.params])
+                        : a)
+                )
+            } catch (error) {
+                c.error = error
+                await runH([
+                    ...(sh.error?.[mt] || []),
+                    ...(sh.error?.all || []),
+                    ...(ah.error?.[mt] || []),
+                    ...(ah.error?.all || [])
+                ], c)
+                throw error
+            }
 
             const af = [...(sh.after?.[mt] || []), ...(sh.after?.all || []), ...(ah.after?.[mt] || []), ...(ah.after?.all || [])];
             af.length && await runH(af, c);
@@ -153,7 +163,7 @@ export const services = (app, m = new Map()) => {
 
         const w = {
             on: (e, f) => (ev.has(e) || ev.set(e, []), ev.get(e).push(f), w),
-            hooks: h => (h.before && Object.assign(sh.before, h.before), h.after && Object.assign(sh.after, h.after), w),
+            hooks: h => (h.before && Object.assign(sh.before, h.before), h.after && Object.assign(sh.after, h.after), h.error && Object.assign(sh.error, h.error), w),
             setup: async (...a) => s.setup?.(...a),
             teardown: async (...a) => s.teardown?.(...a)
         };
