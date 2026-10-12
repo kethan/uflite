@@ -1,7 +1,7 @@
 {
 	"name": "uflite",
 	"description": "Lightweight router and service framework",
-	"version": "0.1.4",
+	"version": "0.2.0",
 	"type": "module",
 	"source": "./src/index.js",
 	"main": "./dist/index.js",
@@ -34,34 +34,66 @@
 			"require": "./nano/dist/index.js",
 			"default": "./nano/dist/index.es.js"
 		},
+		"./hooks": {
+			"types": "./src/hooks/index.d.ts",
+			"import": "./src/hooks/index.js",
+			"default": "./src/hooks/index.js"
+		},
+		"./hooks/flow": { "types": "./src/hooks/flow.d.ts", "import": "./src/hooks/flow.js", "default": "./src/hooks/flow.js" },
+		"./hooks/data": { "types": "./src/hooks/data.d.ts", "import": "./src/hooks/data.js", "default": "./src/hooks/data.js" },
+		"./hooks/auth": { "types": "./src/hooks/auth.d.ts", "import": "./src/hooks/auth.js", "default": "./src/hooks/auth.js" },
+		"./hooks/lifecycle": { "types": "./src/hooks/lifecycle.d.ts", "import": "./src/hooks/lifecycle.js", "default": "./src/hooks/lifecycle.js" },
+		"./hooks/result": { "types": "./src/hooks/result.d.ts", "import": "./src/hooks/result.js", "default": "./src/hooks/result.js" },
+		"./transformers": { "types": "./src/transformers.d.ts", "import": "./src/transformers/index.js", "default": "./src/transformers/index.js" },
+		"./resolvers": { "types": "./src/resolvers.d.ts", "import": "./src/resolvers/index.js", "default": "./src/resolvers/index.js" },
+		"./predicates": { "types": "./src/predicates.d.ts", "import": "./src/predicates/index.js", "default": "./src/predicates/index.js" },
+		"./utils": { "types": "./utils/index.d.ts", "import": "./utils/index.js", "default": "./utils/index.js" },
+		"./middlewares": { "types": "./middlewares.d.ts", "import": "./dist/middlewares.js", "default": "./dist/middlewares.js" },
+		"./services": { "types": "./services/index.d.ts", "import": "./services/index.js", "default": "./services/index.js" },
+		"./services/auth": { "types": "./services/auth.d.ts", "import": "./services/auth.js", "default": "./services/auth.js" },
+		"./services/acl": { "types": "./services/acl.d.ts", "import": "./services/acl.js", "default": "./services/acl.js" },
 		"./package.json": "./package.json"
 	},
 	"files": [
 		"dist",
 		"lite",
-		"nano"
+		"nano",
+		"src",
+		"services",
+		"utils",
+		"middlewares.d.ts",
+		"docs",
+		"licenses",
+		"plugins.js"
 	],
 	"repository": {
 		"type": "git",
 		"url": "git+https://github.com/kethan/uflite.git"
 	},
 	"scripts": {
-		"build": "rollup --config rollup.config.js && npm run copy:types",
-		"copy:types": "bunx shx cp src/index.d.ts dist/index.d.ts || true && bunx shx cp nano/index.d.ts nano/dist/index.d.ts || true && bunx shx cp lite/index.d.ts lite/dist/index.d.ts || true",
+		"build": "rollup --config rollup.config.js && bun build middlewares.ts --outfile dist/middlewares.js --target node && npm run copy:types",
+		"copy:types": "node scripts/copy-types.js",
 		"test": "bun test",
 		"bench": "bun run bench/bench.js",
 		"bench:cmp": "bun run bench/bench-cmp.js",
-		"bench:mitata": "bun run bench/bench-mitata.js"
+		"bench:mitata": "bun run bench/bench-mitata.js",
+		"bench:url": "bun run bench/bench-url.js",
+		"bench:size": "bun run bench/bench-size.js"
 	},
 	"dependencies": {},
 	"devDependencies": {
+		"better-auth": "^1.7.7",
 		"@rollup/plugin-terser": "^0.4.4",
-		"rollup": "^4.20.0",
-		"rollup-plugin-bundle-size": "^1.0.3",
-		"mitata": "^0.1.11",
 		"hono": "^4.4.0",
 		"itty-router": "^4.0.0",
-		"trouter": "^3.2.0"
+		"mitata": "^0.1.11",
+		"rollup": "^4.20.0",
+		"rollup-plugin-bundle-size": "^1.0.3",
+		"trouter": "^3.2.0",
+		"uqry": "^0.1.1",
+		"@aws-sdk/client-s3": "^3.1147.0",
+		"@aws-sdk/s3-request-presigner": "^3.1147.0",
+		"umosql": "0.3.1"
 	},
 	"keywords": [
 		"router",

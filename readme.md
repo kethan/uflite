@@ -2,7 +2,7 @@
 
 # 🪶 μflite
 
-**The ultimate minimal router** - Hono-style middleware + FeathersJS services in ≈2.5 kB.
+**A small Fetch router with hooks and services.** Choose `nano` for the smallest router, `lite` for indexed routing and lifecycle hooks, or the full entry point for response formatting and services.
 
 [![tests](https://github.com/kethan/uflite/actions/workflows/node.js.yml/badge.svg)](https://github.com/kethan/uflite/actions/workflows/node.js.yml) 
 [![Version](https://img.shields.io/npm/v/uflite.svg?color=success&style=flat-square)](https://www.npmjs.com/package/uflite) 
@@ -12,13 +12,13 @@
 
 ## ✨ Features
 
-- 🎯 **704 B** (nano) - Minimal footprint
+- 🎯 **Small entry points** - nano and lite keep unused services and middleware out of the core entry bundles
 - 🔗 **Hono-style middleware** - Proper onion pattern execution
 - 🪝 **Global hooks** - Before/after/error lifecycle
 - 🦅 **FeathersJS services** - Real-time APIs with hooks
 - 🔄 **Two modes** - Sequential (mode 0) or middleware (mode 1)
 - 🚀 **Edge-ready** - Works on Cloudflare Workers, Deno, Bun, Node
-- 📦 **Zero dependencies**
+- 📦 **Dependency-light core** - integrations are isolated to service subpaths
 - 💪 **TypeScript** - Full type support
 
 ---
@@ -86,9 +86,9 @@ app.get("/protected", () => json({ secret: "data" }));
 ### Auto-Response Formatting
 
 ```javascript
-import { Flite } from "uflite";
+import { flite } from "uflite";
 
-const app = Flite();
+const app = flite();
 
 // Returns plain objects - auto-converted to JSON!
 app.get("/users", () => [
@@ -216,9 +216,9 @@ app.post("/users", async (req) => {
 ## 🦅 Services (FeathersJS-style)
 
 ```javascript
-import { Flite, json } from "uflite";
+import { flite, json } from "uflite";
 
-const app = Flite({ mode: 0 });
+const app = flite({ mode: 0 });
 
 // Define a service
 app.service("users", {
@@ -444,9 +444,9 @@ app.use("/api/v2", v2);
 ## 📡 Real-time Channels
 
 ```javascript
-import { Flite } from "uflite";
+import { flite } from "uflite";
 
-const app = Flite();
+const app = flite();
 
 app.service("messages", {
 	async create(data) {
@@ -556,27 +556,29 @@ const createMatchFromRoutes = (router, routes) => {
 }
 ```
 
-Compatible options include `find-my-way`, `@medley/router`, `koa-router`, `trek-router`, and `trouter`. Hono’s internal routers (Pattern/RegExp/Trie) also expose `add`/`match` and can be wrapped similarly when available.
+Hono's `PatternRouter`, `RegExpRouter`, and `TrieRouter` are tested as custom matchers in `tests/hono-router.spec.js`. Their `match()` result formats are Hono internals and differ between router types; the adapter must normalize the returned handler and parameter stash to uflite's `{ handlers, params? }` contract. These Hono subpath APIs can change between Hono releases, so pin and verify the Hono version when relying on them. The tested examples import from `hono/router/pattern-router`, `hono/router/reg-exp-router`, and `hono/router/trie-router`.
 
-Hono internal routers (add + match):
+For Hono 4.x, this is the shape of the tested integration (choose one matcher class):
 
-```javascript
-// createHonoRouter(name, router)
-// Registers routes via router.add(method, path, handler) and exposes match(method, path)
-const createHonoRouter = (name, router, routes, handler) => {
-  for (const r of routes) router.add(r.method, r.path, handler)
-  return {
-    name: `Hono ${name}`,
-    match: ({ method, path }) => router.match(method, path)
-  }
-}
+```js
+import { PatternRouter } from 'hono/router/pattern-router'
+import { flite } from 'uflite/lite'
 
-// Example usage
-// import { PatternRouter } from '@hono/internal-pattern-router'
-// import { RegExpRouter } from '@hono/internal-regexp-router'
-// import { TrieRouter } from '@hono/internal-trie-router'
-// const pattern = createHonoRouter('PatternRouter', new PatternRouter(), app.routes, handler)
-// const app2 = flite({ match: pattern.match })
+const router = new PatternRouter()
+router.add('GET', '/users/:id', request => new Response(JSON.stringify({ id: request.params.id }), {
+  headers: { 'content-type': 'application/json' }
+}))
+
+const app = flite({ match: ({ method, path }) => {
+  const [matches, stash = []] = router.match(method, path)
+  if (!matches.length) return null
+  return { handlers: matches.map(([handler, params = {}]) => request => {
+    request.params = Object.fromEntries(Object.entries(params).map(([key, value]) => [
+      key, typeof value === 'number' ? stash[value] : value
+    ]))
+    return handler(request)
+  }) }
+} })
 ```
 
 ## 🧪 Testing
@@ -598,17 +600,21 @@ test("GET /users/:id", async () => {
 
 ---
 
-## 📊 Size Comparison
+## 📊 Bundle Size
 
-| Library         | Size (min+gzip) | Features             |
-| --------------- | --------------- | -------------------- |
-| **uflite/nano** | **704 B**       | Minimal router       |
-| **uflite/lite** | **1.03 kB**     | Router + hooks       |
-| **uflite**      | **2.46 kB**     | + Services + events  |
-| express         | ~15 KB          | Router only          |
-| hono            | ~12 KB          | Router + middleware  |
-| itty-router     | ~900 bytes      | Router only          |
-| feathers        | ~50 KB          | Services + real-time |
+The package has three entry points so an application can choose the smallest feature set it needs: `uflite/nano` for routing, `uflite/lite` for indexed routing and lifecycle hooks, and `uflite` for response formatting, error handling, services, events, and channels. Import only the entry point and helpers used by the app; service adapters and middleware are separate subpaths.
+
+`bun run bench:size` bundles one minimal `GET /hello` route returning a `Response` for every package with the same Bun browser target, minifier, and gzip setting. Measured with Bun 1.4.1, Hono 4.10.6, and itty-router 4.2.2:
+
+| Entry | Minified | Gzip |
+| --- | ---: | ---: |
+| uflite/nano | 1,377 B | 795 B |
+| uflite/lite | 2,457 B | 1,238 B |
+| uflite | 6,121 B | 2,679 B |
+| Hono | 19,026 B | 7,623 B |
+| itty-router | 1,122 B | 689 B |
+
+In this fixture, lite and full uflite are smaller than Hono, while nano is 106 B larger gzip than itty-router. Keep the `nano` entry focused on the smallest route use case; if beating itty-router is a release requirement, this measurement identifies a remaining optimization target. Re-run `bun run bench:size` after changing routing code or dependencies. Runtime throughput is measured separately with `bun run bench`, `bun run bench:cmp`, `bun run bench:mitata`, and `bun run bench:url`.
 
 ---
 
@@ -657,59 +663,107 @@ If error thrown at any point:
 
 ## 🔧 API Reference
 
-### `flite(config)`
+### Entry points
 
-Create a router instance.
+- `uflite/nano` exports `flite` (also the default export): compact route registration and Fetch-compatible `app.fetch(request)`.
+- `uflite/lite` exports `flite` (also default): indexed routing, mode 0 or 1, and global before/after/error hooks.
+- `uflite` exports the full app with object-to-JSON formatting, default 404/error responses, service registration, events, channels, and helper namespaces.
 
-```typescript
-interface FliteConfig {
-	routes?: any[];
-	mode?: 0 | 1;
-	before?: HooksConfig;
-	after?: HooksConfig;
-	error?: HooksConfig;
-}
+Common app methods are `get`, `post`, `put`, `patch`, `delete`, `all`, `use`, `service`, `hooks`, and `teardown`. Route methods take a path followed by handlers. `app.fetch` accepts a standard Web `Request` and returns a `Promise<Response>`, making it usable directly as a Workers/Bun/Deno Fetch handler.
+
+### Public middleware (`uflite/middlewares`)
+
+The middleware package is optional and separate from the core bundle. Request middleware takes `(request, next)`; response middleware takes `(response, request, next)`. Register request handlers with `before.all` and response handlers with `after.all` in mode 1.
+
+```js
+import { flite } from 'uflite/lite'
+import { cors, corsAfter, requestId, requestIdAfter, rateLimit, rateLimitAfter } from 'uflite/middlewares'
+
+const app = flite({ mode: 1,
+  before: { all: [cors({ origin: 'https://app.example' }), requestId(), rateLimit({ max: 60 })] },
+  after: { all: [corsAfter, requestIdAfter, rateLimitAfter] }
+})
+app.get('/health', () => new Response('ok'))
 ```
 
-### `Flite(config)`
+| Factory | Options | Response phase |
+| --- | --- | --- |
+| `cors` | `origin`, `methods`, `credentials`, `maxAge`, `allowedHeaders`, `exposedHeaders` | `corsAfter` |
+| `logger` | `format: 'dev' \| 'combined' \| 'json'`, `skip(request)` | `loggerAfter` |
+| `rateLimit` | `windowMs`, `max`, `keyGenerator(request)`, `standardHeaders` | `rateLimitAfter` |
+| `bearerAuth` | `token` or async/sync `verify(token)`, optional `realm` | — |
+| `basicAuth` | required `users` map, optional `realm` | — |
+| `bodyLimit` | `max` as bytes or a string such as `'10mb'` | — |
+| `secureHeaders` | CSP, frame, HSTS, content-type, and referrer policy settings | `secureHeadersAfter` |
+| `requestId` | header name and optional `generator()` | `requestIdAfter` |
 
-Router with auto-formatting and error handling.
-
-```typescript
-interface FliteConfig extends FliteConfig {
-	format?: false | ((res: any) => Response);
-	missing?: () => Response;
-}
-```
-
-### Methods
-
-- `app.get(path, ...handlers)` - GET route
-- `app.post(path, ...handlers)` - POST route
-- `app.put(path, ...handlers)` - PUT route
-- `app.patch(path, ...handlers)` - PATCH route
-- `app.delete(path, ...handlers)` - DELETE route
-- `app.all(path, ...handlers)` - All methods
-- `app.use(...handlers)` - Global middleware
-- `app.use(path, router)` - Mount sub-router
+The built-in rate limiter stores counters in process memory, so use a shared store for multi-instance deployments.
 
 ### Services
 
-- `app.service(name, service)` - Register service
-- `app.service(name)` - Get service
-- `app.hooks(hooks)` - Set app-level hooks
-- `app.teardown()` - Cleanup all services
+`app.service(name, service)` registers a service and creates REST routes for its standard methods; `app.service(name)` returns it. Service hooks can be set with `service.hooks({ before, after, error })`. `app.teardown()` calls service cleanup hooks where implemented.
 
----
+```js
+import { flite } from 'uflite'
+import { createDBService } from 'uflite/services'
 
-## 🚀 Deployment
+const app = flite()
+const records = createDBService(undefined, { paginate: { default: 20, max: 100 } })
+app.service('records', records)
+// REST methods: GET /records, GET /records/:id, POST /records,
+// PATCH /records/:id, DELETE /records/:id
+```
+
+`createDBService(provider?, options?)` adapts a collection provider; with no provider it uses an in-memory collection. `createTableService(db)` exposes table/schema CRUD for adapters that implement the required collection methods. `createStorageService(options?)` uses local files by default; set `type: 's3'` and provide bucket/credentials to use S3. `createStorage` aliases `createStorageService`. See the service-specific examples below for storage configuration and lifecycle hooks.
+
+Register a table service around a database adapter that implements UMOSQL's schema operations:
+
+```js
+import { createTableService } from 'uflite/services'
+
+const tables = app.service('tables', createTableService(dbAdapter))
+await tables.create({ name: 'users', schema: { name: { type: 'TEXT', notNull: true } } })
+const schema = await tables.get('users')
+```
+
+ACL is separately importable and uses `uqry` as a peer supplied by the application:
+
+```js
+import { createACL } from 'uflite/services/acl'
+
+const acl = createACL({ enabled: true, rules: [
+  { id: 'edit-own', permissions: ['user:posts:update'], check: { 'user.id': 'u1' } }
+] })
+const allowed = acl.can({ user: { id: 'u1' }, userId: 'u1' }, 'user:posts:update')
+```
+
+Auth is isolated from the core entry point. Install `better-auth` in the consuming application and pass a UMOSQL-compatible adapter, base URL, and secret to `createAuth`:
+
+```js
+import { createSchemalessAdapter } from 'umosql/schemaless'
+import { createAuth } from 'uflite/services/auth'
+
+const { adapter } = createSchemalessAdapter(undefined, 'memory')
+const auth = await createAuth({
+  adapter,
+  baseURL: 'http://localhost:3000',
+  secret: process.env.AUTH_SECRET
+})
+// In a Fetch server, forward auth endpoints to Better Auth:
+export const handleAuth = request => auth.handler(request)
+```
+
+### Hooks, predicates, transformers, and resolvers
+
+Import `uflite/hooks` for service lifecycle hooks. The flow module exports `iff`, `unless`, `throwIf`, `disallow`, `setResult`, and `setData`; the data module exports `requireFields`, `setDefaults`, `preventChanges`, `removeFields`, `transformData`, `setQueryDefaults`, `setField`, `pickDataFields`, `validateData`, `pickQueryFields`, `transformQuery`, and `preventEmptyData`. The auth module exports `requireAuth`, `requireRole`, `requirePermission`, `requireOwner`, `scopeToActor`, `requireMethod`, and `rateLimit`. Lifecycle hooks include `auditFields`, `publishEvent`, `sideEffect`, and `debug`; result hooks include `transformResult`, `pickResultFields`, `omitResultFields`, and `mapResult`. Use `uflite/predicates`, `uflite/transformers`, and `uflite/resolvers` for lower-level helpers. These independent package subpaths are not added to minimal nano imports. See the [hook specification](docs/HOOK_SPEC.md) and [real-world patterns](docs/REAL_WORLD_HOOKS.md) for signatures and options.
+## 🌐 Runtime Compatibility
 
 ### Cloudflare Workers
 
 ```javascript
-import { Flite } from "uflite";
+import { flite } from "uflite";
 
-const app = Flite();
+const app = flite();
 
 app.get("/", () => ({ message: "Hello from Workers!" }));
 
@@ -719,9 +773,9 @@ export default app;
 ### Bun
 
 ```javascript
-import { Flite } from "uflite";
+import { flite } from "uflite";
 
-const app = Flite();
+const app = flite();
 
 app.get("/", () => ({ message: "Hello from Bun!" }));
 
@@ -734,41 +788,65 @@ Bun.serve({
 ### Deno
 
 ```javascript
-import { Flite } from "npm:uflite";
+import { flite } from "npm:uflite";
 
-const app = Flite();
+const app = flite();
 
 app.get("/", () => ({ message: "Hello from Deno!" }));
 
 Deno.serve(app.fetch);
 ```
 
-### Node.js (with adapter)
+### Node.js
+
+Install the optional Node.js adapter with `npm install @hono/node-server`.
 
 ```javascript
-import { Flite } from "uflite";
+import { flite } from "uflite";
 import { serve } from "@hono/node-server";
 
-const app = Flite();
+const app = flite();
 
 app.get("/", () => ({ message: "Hello from Node!" }));
 
-serve(app);
+serve({
+	fetch: app.fetch,
+	port: 3000,
+});
 ```
 ---
 
-## Key Updates:
+### Hono integration
 
-✅ **Hono-style middleware** - Properly documented
-✅ **Mode 0 vs 1** - Clear comparison table
-✅ **Service hooks** - Complete examples with execution order
-✅ **Flite** - Auto-formatting feature
-✅ **Real architecture** - Accurate execution flow diagram
-✅ **Size comparison** - Shows competitive advantage
-✅ **Deployment guides** - All major runtimes
-✅ **TypeScript** - Mentioned type support
+Use Hono when you want its middleware around requests handled by uflite. Install Hono as an optional dependency with `npm install hono`.
 
-**Professional, accurate, and complete!** 🚀
+```javascript
+import { Hono } from "hono";
+import { flite } from "uflite";
+
+const hono = new Hono();
+const api = flite();
+
+api.get("/hello", () => ({ message: "Hello from uflite!" }));
+
+// Optional Hono middleware runs before the request is forwarded.
+hono.use("*", async (_context, next) => {
+	console.log("Request received");
+	await next();
+});
+
+// Small adapter: forward Hono's native Request to uflite.
+export const honoAdapter = (app, uflite) => {
+	app.all("*", (context) => uflite.fetch(context.req.raw));
+	return app;
+};
+
+export default honoAdapter(hono, api);
+```
+
+The Node.js and Hono integrations are optional. Neither `@hono/node-server` nor `hono` is a core runtime dependency of uflite.
+
+---
 ### Browser (SPA)
 
 ```html
@@ -855,9 +933,67 @@ app.fetch(new Request(location.origin + location.pathname)).then((Comp) => mount
 ```
 ---
 
+## Storage Service
+
+`createStorageService()` defaults to local files in `./data/files`. It supports upload, download, metadata, listing, and deletion through service methods and HTTP routes. Raw HTTP uploads use `PUT /storage?key=folder/file.txt`; downloads use `GET /storage/download?key=folder/file.txt`.
+
+For local storage, set `basePath` to choose a different directory and `maxFileSize` to set the upload limit. Local storage is suitable for development and single-instance deployments. Use shared durable storage such as S3 when multiple instances must see the same files.
+
+Pass `type: 's3'` to explicitly select S3-compatible storage. Existing S3 configurations that provide `bucket`, `region`, or credentials continue to select S3 automatically.
+
+### S3-compatible backend
+
+```js
+import { createStorageService } from 'uflite/services'
+
+app.service('storage', createStorageService({
+  type: 's3',
+  endpoint: 'http://localhost:9000', // omit for AWS S3
+  region: 'us-east-1',
+  accessKeyId: storageAccessKey,
+  secretAccessKey: storageSecretKey,
+  bucket: 'uploads'
+}))
+```
+
+Request an upload URL with `POST /storage/presign` and `{ key, contentType }`, then `PUT` the file directly to the returned `url`, using the returned `headers`. Request downloads with `POST /storage/presign-download` and `{ key }`. `GET /storage` lists objects; `GET /storage/:id` reads metadata; `DELETE /storage/:id` deletes an object. The `/storage/head` and `/storage/delete` POST routes accept `{ key }` for keys containing slashes.
+
+Storage operations use the normal service hooks. Their REST routes include the server-side `request` in hook `params`, so authorization hooks can inspect trusted authentication state attached by middleware. Do not authorize from a user-supplied key prefix alone.
+
+Configure bucket CORS at the storage provider to allow the frontend origin, `PUT`, and the signed request headers. Presigned PUT URLs do not enforce a maximum file size; `contentLength` is rejected instead of implying a limit. `ListObjectsV2` does not return per-object content types, so list entries have `contentType: null`; use object metadata for the content type. Multipart uploads and live-provider tests require separate infrastructure and are not included in this first service implementation.
+
+## Database Service Defaults
+
+`createDBService()` uses an isolated in-memory collection by default and accepts optional `initialData`. This data is lost when the process exits and is not shared between server instances. For production persistence, pass a collection provider backed by your configured database:
+
+```js
+import { createDBService } from 'uflite/services'
+
+app.service('users', createDBService(params => database.collection('users')))
+```
+
+## Generic Service Hooks and Utilities
+
+uflite includes reusable service hooks, predicates, data transformers, and field resolver helpers. They use the existing service lifecycle and error type, and work in both hook modes.
+
+```js
+import { flite } from 'uflite'
+import { requireAuth, requireFields, setDefaults, auditFields, transformResult } from 'uflite/hooks'
+import * as transformers from 'uflite/transformers'
+
+const app = flite()
+const users = app.service('users', userService)
+users.hooks({
+  before: { create: [requireAuth(), requireFields(['email']), setDefaults({ active: true }), auditFields()] },
+  after: { get: [transformResult(user => transformers.pick(['id', 'email'])(user))] }
+})
+```
+
+Public subpaths include `uflite/middlewares`, `uflite/utils`, `uflite/hooks`, `uflite/predicates`, `uflite/transformers`, `uflite/resolvers`, and `uflite/services`. The optional `uflite/services/auth` and `uflite/services/acl` entries require the consuming application to provide `better-auth` and `uqry`, respectively; neither is loaded through the core or generic service entry. `better-auth` remains a development dependency. The services module exports `createDBService`, `createTableService`, `createStorageService`, and `createStorage`. See the [hook specification](docs/HOOK_SPEC.md) and [real-world patterns](docs/REAL_WORLD_HOOKS.md) for hook API and practical guidance.
+
 ## 🤝 Contributing
 
-Contributions welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md).
+Contributions are welcome. Run `bun test` for the suite and `bun run build` to regenerate distributable files before opening a change.
 
 ---
 
@@ -879,16 +1015,8 @@ Inspired by:
 
 ## 📚 Examples
 
-See [/examples](./examples) for:
-
-- REST API with authentication
-- Real-time chat
-- File upload/download
-- SSR with JSX
-- Multi-tenant apps
-- WebSocket integration
+See [/examples](./examples) for the checked-in browser SPA, React browser, middleware, and service-worker examples. Service APIs and hooks are documented above; the examples directory does not currently contain chat, SSR, or WebSocket demos.
 
 ---
 
 **Built with ❤️ for the edge**
----

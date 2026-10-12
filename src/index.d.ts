@@ -157,3 +157,5 @@ export type FullFliteApp = FliteApp & EventsApp & ChannelsApp & ServicesApp;
 
 export function flite(config?: FliteConfigWithHooks): FullFliteApp;
 export default flite;
+
+export * from '../src/generic-hooks.js';

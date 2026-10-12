@@ -1,6 +1,10 @@
 import { flite as core } from '../lite/index.js';
 import { events, channels, services, json, error } from '../plugins.js';
 export { status, response, text, html, json, error, run } from '../plugins.js';
+export * from './hooks/index.js';
+export * as predicates from './predicates/index.js';
+export * as transformers from './transformers/index.js';
+export * as resolvers from './resolvers/index.js';
 
 export const flite = ({
     format = (r) => r instanceof Response ? r : json(r),

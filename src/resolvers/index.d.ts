@@ -1,0 +1,17 @@
+export type FieldResolver = (value: any, object: Record<string, any>, context?: any) => any | Promise<any>;
+export const value: () => FieldResolver;
+export const fromPath: (path: string, options?: { fallback?: any }) => FieldResolver;
+export const fromContext: (path: string, options?: { fallback?: any }) => FieldResolver;
+export const fallback: (defaultValue: any) => FieldResolver;
+export const mapValue: (mapper: FieldResolver) => FieldResolver;
+export const lookup: (fetchOne: Function, options?: { key?: FieldResolver; fallback?: any }) => FieldResolver;
+export const resolveIf: (predicate: FieldResolver, resolver: FieldResolver, options?: { otherwise?: any }) => FieldResolver;
+export const omitIf: (predicate: FieldResolver) => FieldResolver;
+export const redactIf: (predicate: FieldResolver, replacement?: any) => FieldResolver;
+export const mapArray: (resolver: FieldResolver) => FieldResolver;
+export const relation: (fetchOne: Function, options?: { key?: FieldResolver; fallback?: any }) => FieldResolver;
+export const relationMany: (fetchMany: Function, options?: { key?: FieldResolver }) => FieldResolver;
+export const join: (separator?: string) => FieldResolver;
+export const count: () => FieldResolver;
+export const sum: () => FieldResolver;
+export const pluck: (field: string) => FieldResolver;
