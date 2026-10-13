@@ -1,5 +1,5 @@
-import { flite } from "../lite/index.js";
-import { compile, lead, mount, json } from "../plugins.js";
+import { flite } from "../src/lite/index.js";
+import { compile, lead, mount, json } from "../src/runtime.js";
 
 const now = () => performance.now();
 const print = (label, ms, ops) => console.log(label + " " + ms.toFixed(2) + "ms " + Math.round(ops) + "/s");

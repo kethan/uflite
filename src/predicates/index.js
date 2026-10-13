@@ -1,4 +1,5 @@
-import { isObject } from '../../utils/isObject.js'
+import { isObject } from '../utils/is-object.js'
+import { pathValue } from '../utils/path-value.js'
 
 /**
  * Pure, reusable predicate factories.
@@ -6,9 +7,6 @@ import { isObject } from '../../utils/isObject.js'
  * Predicates return booleans and do not mutate the value/context.
  * Async composition helpers await every child predicate.
  */
-const pathValue = (object, path) =>
-  String(path).split('.').reduce((value, key) => value == null ? undefined : value[key], object);
-
 export const isPresent = value => value !== undefined && value !== null;
 export const isNil = value => value === undefined || value === null;
 export const isString = value => typeof value === 'string';

@@ -1,4 +1,4 @@
-import { continueIfMiddleware, configuredError, createConfiguredError } from '../internal.js';
+import { continueIfMiddleware, configuredError, createConfiguredError } from './internal.js';
 
 const authErrors = {
   unauthenticated: { message: 'Authentication required', status: 401, code: 'UNAUTHENTICATED' },

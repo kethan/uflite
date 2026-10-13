@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "bun:test";
-import { flite } from "../nano/index.js";
-import { run } from '../plugins.js';
+import { flite } from "../src/nano/index.js";
+import { run } from '../src/runtime.js';
 
 const makeRequest = (path, method = "GET", body) =>
     new Request("http://localhost" + path, {

@@ -25,7 +25,7 @@ try {
       assert.equal(typeof esm.flite, 'function', path + ' ESM');
       assert.equal(typeof cjs.flite, 'function', path + ' CommonJS');
     }
-    const { createLocalStorageService } = await import('uflite/services/localStorage');
+    const { createLocalStorageService } = await import('uflite/services/local-storage');
     const { createTableService } = await import('uflite/services/table');
     assert.equal(typeof createLocalStorageService, 'function');
     assert.equal(typeof createTableService, 'function');

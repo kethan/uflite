@@ -1,8 +1,8 @@
 import { afterEach, describe, expect, it } from 'bun:test'
 import { mkdtemp, rm } from 'node:fs/promises'
 import { join } from 'node:path'
-import { createACL } from '../services/acl.js'
-import { createStorageService } from '../services/storage.js'
+import { createACL } from '../src/services/acl.js'
+import { createStorageService } from '../src/services/storage.js'
 import { flite } from '../src/index.js'
 
 const config = overrides => ({

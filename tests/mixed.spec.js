@@ -1,6 +1,6 @@
 
 import { describe, test, expect, beforeEach } from 'bun:test';
-import { flite, json, text, html, error, status } from '../src';
+import { flite, json, text, html, error, status } from '../src/index.js';
 
 
 // ===== 1. BASIC ROUTING =====

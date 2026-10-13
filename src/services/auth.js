@@ -9,7 +9,8 @@ import {
 	twoFactor,
 	username,
 } from 'better-auth/plugins'
-import { sqlAdapterFactory } from './sqlAdapterFactory.js'
+import { sqlAdapterFactory } from './sql-adapter-factory.js'
+export { sqlAdapterFactory } from './sql-adapter-factory.js'
 
 const buildPlugins = (config = {}) => {
 	config = config ?? {}

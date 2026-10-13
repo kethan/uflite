@@ -1,4 +1,4 @@
-import { continueIfMiddleware } from '../internal.js';
+import { continueIfMiddleware } from './internal.js';
 
 /** Set audit fields on create/update data. The service must persist context.data. */
 export const auditFields = ({

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'bun:test'
-import { createACL } from '../services/acl.js'
+import { createACL } from '../src/services/acl.js'
 
 const acl = rules =>
   createACL({

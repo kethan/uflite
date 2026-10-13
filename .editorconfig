@@ -1,0 +1,20 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Feature and tier modules use two-space indentation.
+[src/**.js]
+indent_style = space
+indent_size = 2
+
+# Keep the intentionally compact runtime primitives.
+[src/runtime.js]
+indent_style = space
+indent_size = 4
+
+[package.json]
+indent_style = tab

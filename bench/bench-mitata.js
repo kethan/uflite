@@ -1,9 +1,9 @@
 import { bench, group, run } from 'mitata'
-import { flite as nano } from '../nano/index.js'
-import { flite as lite } from '../lite/index.js'
+import { flite as nano } from '../src/nano/index.js'
+import { flite as lite } from '../src/lite/index.js'
 import { Hono } from 'hono'
 import { Router } from 'itty-router'
-import { json, compile, lead, mount } from '../plugins.js'
+import { json, compile, lead, mount } from '../src/runtime.js'
 
 const setupNano = () => {
   const app = nano()

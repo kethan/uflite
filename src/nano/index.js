@@ -1,4 +1,4 @@
-import { lead, mount, compile, run } from '../plugins';
+import { lead, mount, compile, run } from '../runtime.js';
 
 export const flite = ({ routes = [], ...others } = {}) => ({
     __proto__: new Proxy({}, {
@@ -24,14 +24,14 @@ export const flite = ({ routes = [], ...others } = {}) => ({
   fetch: async (request, ...args) => {
         const url = new URL(request.url), path = url.pathname, mt = request.method, exec = hs => run(others.mode)(hs);
         let result, match;
-        request.query = { __proto__: null };
+        const query = request.query = { __proto__: null };
         for (let [k, v] of url.searchParams)
-            request.query[k] = request.query[k] ? [].concat(request.query[k], v) : v;
+            query[k] = query[k] ? [].concat(query[k], v) : v;
         const mx = others.match;
         if (mx) {
             const m = mx({ method: mt, path });
             if (m?.params) request.params = m.params;
-            if (m?.handlers?.length) return await exec(m.handlers)(request, ...args);
+            if (m?.handlers?.length) return exec(m.handlers)(request, ...args);
         } else {
             for (let [m, rx, hs] of routes)
                 if ((m == mt || m == 'ALL') && (match = path.match(rx))) {
