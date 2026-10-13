@@ -21,6 +21,6 @@ curl -si localhost:3000/unknown                                   # 404 Route no
 
 Data resets on restart; no external DB or credentials.
 
-`index.js` exports a Fetch handler with `.then(json).catch(error)`; the lite after hook supplies 404 on misses.
+`index.js` exports the lite app directly: its configured error hook handles thrown errors, and its after hook supplies 404 on misses; no extra `.catch(error)` wrapper is needed.
 
 `index.js` is a Fetch handler; `server.js` is a tiny `Bun.serve` runner. Neither Hono nor a Node HTTP adapter is installed.

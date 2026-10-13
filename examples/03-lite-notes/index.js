@@ -42,7 +42,4 @@ app.patch('/notes/:id', async req => { found(req.params.id); return json(store.u
 app.delete('/notes/:id', req => { found(req.params.id); return json(store.remove(req.params.id)); });
 
 export { app };
-export const handler = {
-  fetch: (request, ...args) => app.fetch(request, ...args).then(json).catch(error)
-};
-export default handler;
+export default app;

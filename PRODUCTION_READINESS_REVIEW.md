@@ -23,7 +23,7 @@ This review records the state of the branch after the README/examples work. It i
 - `bun install --frozen-lockfile`, `bun run build`, `bun test`: **701 pass, 0 fail, 1,016 assertions across 21 files**.
 - `bun run test:types`: passed (middleware source and NodeNext public-consumer sample).
 - `bun run test:package`: passed (packed ESM/CommonJS/TypeScript imports without production dependencies; DB-only subpath with only `umosql`).
-- `bun run test:examples`: passed. It installs each example, launches the documented Bun command, and checks HTTP success and error cases, CRUD, Better Auth signup, ACL-protected DBService and local storage.
+- `bun run test:examples`: passed. It runs the documented `npm install` and `npm start` for each Bun-hosted example and checks HTTP success and error cases, CRUD, Better Auth signup, ACL-protected DBService and local storage.
 - `bun run bench:size` (Bun 1.4.3): nano 1,385 B minified / 799 B gzip; lite 2,470 / 1,251; full 6,134 / 2,690. Fixture: one browser-target GET route; not a universal performance claim.
 - The README's internal headings and relative file links were checked. StackBlitz itself was **not** opened or tested; no StackBlitz links are supplied.
 

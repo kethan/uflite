@@ -1,4 +1,4 @@
-import { flite, json, error, status } from 'uflite';
+import { flite, json, status } from 'uflite';
 import { requestId, bearerAuth, requestIdAfter } from 'uflite/middlewares';
 import { requireFields, transformData } from 'uflite/hooks';
 import { trimStrings } from 'uflite/transformers';
@@ -47,7 +47,4 @@ items.hooks({
 items.on('created', item => console.log('Created item', item.id));
 app.get('/item-count', async () => json({ count: await items.count() }));
 export { app };
-export const handler = {
-  fetch: (request, ...args) => app.fetch(request, ...args).then(json).catch(error)
-};
-export default handler;
+export default app;

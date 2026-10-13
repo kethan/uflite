@@ -1,5 +1,5 @@
 import { createSchemalessAdapter } from 'umosql/schemaless';
-import { flite, json, error, status } from 'uflite';
+import { flite, json, status } from 'uflite';
 import { createDBService } from 'uflite/services/db';
 import { createAuth } from 'uflite/services/auth';
 import { createACL } from 'uflite/services/acl';
@@ -48,7 +48,4 @@ const storage = process.env.S3_BUCKET ? createStorageService({
 app.service('storage', storage);
 
 export { app };
-export const handler = {
-  fetch: (request, ...args) => app.fetch(request, ...args).then(json).catch(error)
-};
-export default handler;
+export default app;

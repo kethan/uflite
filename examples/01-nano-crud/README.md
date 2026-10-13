@@ -22,6 +22,6 @@ curl -si localhost:3000/missing                                   # 404 Route no
 curl -si localhost:3000/test-error                                # 500 Internal Server Error (demo route)
 ```
 
-`nano.fetch` returns handler values directly (or `undefined` for no match); the wrapper uses `.then(json).catch(error)` to format plain objects and catch thrown errors. Full `uflite` provides automatic formatting and missing/error handling without this wrapper. The exact `.then(json).catch(error)` wrapper returns exception messages (including 5xx); install a redacting error handler before production. `router.all('*', ...)` supplies the fallback because nano itself returns `undefined` on a miss.
+`nano.fetch` returns handler values directly (or `undefined` for no match); the wrapper uses `.then(json).catch(error)` to format plain objects and catch thrown errors. Full `uflite` provides automatic formatting and missing/error handling without this wrapper. The exact `.then(json).catch(error)` wrapper returns exception messages (including 5xx); for a deployed app, replace it with the [production-safe nano error policy](../../readme.md#user-content-production-safe-nano-errors), which logs internal errors privately and returns a generic 500. `router.all('*', ...)` supplies the fallback because nano itself returns `undefined` on a miss.
 
 `index.js` is a Fetch handler; `server.js` is a tiny `Bun.serve` runner. Neither Hono nor a Node HTTP adapter is installed.

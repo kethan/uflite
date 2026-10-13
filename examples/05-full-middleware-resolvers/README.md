@@ -21,4 +21,4 @@ curl -s -X DELETE localhost:3000/items/1 -H 'authorization: Bearer demo-token' #
 
 Order: global request ID and bearer middleware → registered REST route → service `before.create` validation and name trimming → service method → `after.create` label using `fromPath('name')` → service `created` event → global after response header. The service's `count()` is a custom direct-call method exposed via `/item-count`. Mode 0 is used; hooks in mode 1 must call `next()` to continue.
 
-`index.js` exports the Fetch handler; the tiny `server.js` wires it to `Bun.serve`. Neither Hono nor a Node HTTP adapter is installed.
+`index.js` exports the full app directly; its error hook and fallback supply responses. The tiny `server.js` wires it to `Bun.serve`. Neither Hono nor a Node HTTP adapter is installed.

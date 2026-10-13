@@ -16,10 +16,11 @@
 
 | Start here | Build an app | Reference & operations |
 | :--- | :--- | :--- |
-| [Choose an entry point](#user-content-choose-an-entry-point) | [Quick-start skeletons](#user-content-quick-start-skeletons) | [Complete API signatures](#user-content-complete-api-signatures) |
+| [Choose an entry point](#user-content-choose-an-entry-point) | [Quick-start skeletons](#user-content-quick-start-skeletons) | [API at a glance](#user-content-api-at-a-glance) |
 | [Size comparison](#user-content-size-comparison) | [Five tested examples](#user-content-five-runnable-examples) | [Runtime integrations](#user-content-runtime-adapters) |
 | [Install & optional integrations](#user-content-install-and-optional-integrations) | [Practical patterns](#user-content-practical-patterns) | [Test, security & license](#user-content-testing-security-and-license) |
 | [Routing, hooks & services](#user-content-routing-hooks-and-services) | [Browser SPA / React](#user-content-browser-routing) | [Custom matchers](#user-content-custom-matchers) |
+| [Hook cookbook](docs/HOOK_SPEC.md) | [Worked hook recipes](docs/REAL_WORLD_HOOKS.md) | [Complete API reference](docs/API_REFERENCE.md) |
 
 <a id="choose-an-entry-point"></a>
 ## 🎯 Choose an entry point
@@ -78,12 +79,12 @@ bun add uflite       # use Bun.serve or export a Fetch handler
 | `uflite/services/storage` | `@aws-sdk/client-s3 @aws-sdk/s3-request-presigner` | Factory imports both even in local mode |
 | `uflite/services` | `umosql` **and** both AWS packages | Eager DB + storage barrel; prefer individual subpaths |
 
-`better-auth` and `uqry` are imported separately, not by the services barrel. Import paths and signatures are indexed [below](#user-content-complete-api-signatures).
+`better-auth` and `uqry` are imported separately, not by the services barrel. Import paths and signatures are indexed [in the API reference](docs/API_REFERENCE.md).
 
 <a id="quick-start-skeletons"></a>
 ## 🚀 Quick-start skeletons
 
-**The Fetch handler is the app.** This is the exact nano/lite pattern for formatting plain handler values and catching errors; `json` and `error` are imported from full `uflite`:
+**The Fetch handler is the app.** This is the introductory **nano** pattern for formatting plain handler values and catching errors; `json` and `error` are imported from full `uflite`:
 
 ```js
 export default {
@@ -95,7 +96,7 @@ export default {
 }
 ```
 
-On nano/lite, a miss resolves to `undefined`, so `json(undefined)` is also `undefined`: register a last `all('*', () => error(404, 'Not found'))` route or add your own fallback before returning from a real HTTP server. `.catch(error)` returns the **error message even for a 500**, so redact sensitive exceptions in production. Full already formats and handles errors, but can use the same wrapper when a uniform Fetch export is desired.
+This wrapper is for **learning nano**, not production error policy. Nano returns `undefined` on a miss, so `json(undefined)` is also `undefined`: register a last `all('*', () => error(404, 'Not found'))` route or supply an explicit fallback. `.catch(error)` reflects thrown error messages even on 500. Lite has configurable request hooks for errors and misses; full has built-in formatting, fallback and an error hook. Neither needs this nano wrapper. A [safe nano wrapper](#user-content-production-safe-nano-errors) appears below.
 
 ### 1 · Worker-ready nano Fetch module
 
@@ -114,6 +115,32 @@ export default {
     router.fetch(request, ...args).then(json).catch(error)
 }
 ```
+
+<a id="production-safe-nano-errors"></a>
+### Production-safe nano error policy
+
+For a deployed nano app, **replace** the introductory wrapper (do not use both defaults). This version guarantees a Response for unmatched routes, logs internal failures on the server, keeps deliberate 4xx messages, and never sends a 5xx exception message to the client:
+
+```js
+import { json, error } from 'uflite'
+// router is the nano instance with your routes registered above.
+export default {
+  fetch: (request, ...args) => router.fetch(request, ...args)
+    .then(value => value ?? error(404, 'Not found'))
+    .then(json)
+    .catch(err => {
+      const code = Number.isInteger(err?.status) && err.status >= 400 && err.status < 500
+        ? err.status : 500
+      if (code === 500) {
+        console.error('Request failed:', err) // server-side log; configure your logger
+        return error(500, 'Internal Server Error')
+      }
+      return error(code, err.message || 'Request rejected')
+    })
+}
+```
+
+The 404 is explicit: nano has **no** built-in missing-route handler. Do not put sensitive data in deliberate 4xx messages either. A configured request error hook is the equivalent customization for lite/full; the full entry's **default** error hook exposes 5xx messages unless you replace it.
 
 ### 2 · Bun — serve that same module
 
@@ -147,11 +174,7 @@ const router = flite({
 })
 router.get('/notes', () => json([{ id: '1', text: 'Hello' }]))
 router.all('*', () => error(404, 'Not found'))
-
-export default {
-  fetch: (request, ...args) =>
-    router.fetch(request, ...args).then(json).catch(error)
-}
+export default router // lite has its own request hook pipeline; no nano wrapper needed
 ```
 
 `curl -i localhost:3000/notes` → JSON plus `x-time-ms`. Lite has **global request hooks**, not a service registry. Use [example 03](examples/03-lite-notes/README.md) for CRUD, error hooks, and a separate notes module.
@@ -161,7 +184,7 @@ export default {
 After `bun add uflite umosql@0.3.1`, save this as `index.js` and use the same Bun `server.js`. The service automatically creates REST routes; no second CRUD implementation is needed:
 
 ```js
-import { flite, json, error, status } from 'uflite'
+import { flite, status } from 'uflite'
 import { createDBService } from 'uflite/services/db'
 
 const router = flite()
@@ -170,10 +193,7 @@ tasks.hooks({ before: { create: [ctx => {
   if (!ctx.data?.title) throw new status(400, 'title is required')
 }] } })
 // Local learning only: authenticate these generated routes before exposing real data.
-export default {
-  fetch: (request, ...args) =>
-    router.fetch(request, ...args).then(json).catch(error)
-}
+export default router // full already formats values and handles missing/error responses
 ```
 
 `curl -X POST localhost:3000/tasks -H 'content-type: application/json' -d '{"title":"Ship it"}'` creates a record; `curl localhost:3000/tasks` lists it. For **real Better Auth sessions, ACL and storage**, use [example 04](examples/04-full-services/README.md); it is tested end-to-end with Bun and never installs an HTTP adapter.
@@ -203,7 +223,7 @@ Request → nano router (route matching / handlers)
                  └─ full (format / missing + services + events + channels)
 ```
 
-**Routes.** `app.get('/tasks/:id', req => json({ id: req.params.id, tag: req.query.tag }))` matches a segment; `req.query` is a flat object and repeated keys become arrays. `app.get('/files/*', ...)` matches descendants. `app.use('/api', child)` mounts registered child routes; `app.use('/api/*', handler)` adds an ALL middleware route (register guards **before** protected routes). A `match({method,path})` callback may return `{handlers,params?}` instead of registered lookup. The deliberately compact route compiler treats literal regexp punctuation such as `.` as regex syntax; it **does not escape** literal paths.
+**Routes.** `app.get('/tasks/:id', req => json({ id: req.params.id, tag: req.query.tag }))` matches a segment; `req.query` is flat; repeated keys with a nonempty first value become arrays (a leading empty value can be overwritten). `app.get('/files/*', ...)` matches descendants. `app.use('/api', child)` mounts registered child routes; `app.use('/api/*', handler)` adds an ALL middleware route (register guards **before** protected routes). A `match({method,path})` callback may return `{handlers,params?}` instead of registered lookup. The deliberately compact route compiler treats literal regexp punctuation such as `.` as regex syntax; it **does not escape** literal paths.
 
 **Two execution modes.** Handler args start with the Web Request (`req.params`, `req.query`), followed by any adapter args. Mode 1's `next` comes **last**.
 
@@ -228,7 +248,7 @@ app.get('/private',
 
 **Request hooks** (lite/full) accept `{ before: {all, get, post, ...}, after: {...}, error: {...} }` in `flite`. `before` receives `req`, `after` receives `(result, req)`, `error` receives `(err, req)`; each can access adapter args. They are **not** service-context hooks.
 
-**Service hooks** (full only) use `app.service(name, implementation)` and `service.hooks({before,after,error})` or `app.hooks(...)`. A service hook receives mutable `{app,service,path,method,params,id?,data?,result?,error?}`. On success: app.before.all → app.before.method → service.before.all → service.before.method → implementation → service.after.method → service.after.all → app.after.method → app.after.all. Implementation exceptions run service.error.method/all, then app.error.method/all, and rethrow; errors from *before* hooks bypass those method-error hooks. In mode 1 call `next()` to continue. `created`, `updated`, `patched`, `removed` events fire on successful mutations. `setup` at registration and `app.teardown()` do **not await** async lifecycle operations.
+**Service hooks** (full only) use `app.service(name, implementation)` and `service.hooks({before,after,error})` or `app.hooks(...)`. A service hook receives mutable `{app,service,path,method,params,id?,data?,result?,error?}`. On success: app.before.all → app.before.method → service.before.all → service.before.method → implementation → service.after.method → service.after.all → app.after.method → app.after.all. Implementation exceptions enter service.error.method → service.error.all → app.error.method → app.error.all, then rethrow; these hooks observe errors, they do not recover the call. Failures in **before or after hooks** bypass the service error hooks (though request-level error hooks can handle a rejected REST request). In mode 1 each hook must call `next()` for the next hook to run, including error hooks. `created`, `updated`, `patched`, `removed` events fire on successful mutations. `setup` at registration and `app.teardown()` do **not await** async lifecycle operations.
 
 Only implemented standard service methods auto-register REST routes (`GET /name`, `GET /name/:id`, `POST /name`, `PUT /name/:id`, `PATCH /name/:id`, `DELETE /name/:id`); custom methods are direct-call only unless you write a route. **Protect generated routes** before registration if data is sensitive. See [example 05](examples/05-full-middleware-resolvers/index.js) for a complete lifecycle.
 
@@ -249,7 +269,7 @@ app.get('/missing', () => error(404, 'Not found'))
 app.get('/private', () => { throw new status(401, 'Sign in first') })
 ```
 
-Full uflite also converts plain objects to JSON and supplies its own unmatched-route 404. Nano and lite need the explicit `.then(json).catch(error)` wrapper above when handlers return plain values. Returning a `Response` from `json` is safe to pass through `json` again; a 5xx `error` response can reveal its original message.
+Full uflite also converts plain objects to JSON and supplies its own unmatched-route 404. Nano needs an explicit formatter or wrapper when handlers return plain values; lite can use its `after` hook for formatting (or explicitly return `json(...)`). Returning a `Response` from `json` is safe to pass through `json` again; a 5xx `error` response can reveal its original message.
 
 ### Global request hooks · before / after / error
 
@@ -296,7 +316,7 @@ router.get('/health', () => json({ ok: true }))
 // Supply a verified auth identity and your own CORS policy before exposing real data.
 ```
 
-For your own mode-1 middleware: `(req, next) => { /* before */ await next(); /* after */ }`. For cross-phase data in separate before/after hooks, store metadata in a `WeakMap` keyed by the Request rather than trusting client headers. HTTP middleware is **not** the same as service hooks. See [middleware option signatures](#user-content-complete-api-signatures).
+For your own mode-1 middleware: `(req, next) => { /* before */ await next(); /* after */ }`. For cross-phase data in separate before/after hooks, store metadata in a `WeakMap` keyed by the Request rather than trusting client headers. HTTP middleware is **not** the same as service hooks. See [middleware option signatures](docs/API_REFERENCE.md).
 
 ### Service hooks, events and custom methods
 
@@ -357,265 +377,18 @@ const s3 = createStorageService({ type: 's3', bucket: 'uploads', region: 'us-eas
 
 Local storage's raw routes include `PUT /storage?key=folder/file.txt` and `GET /storage/download?key=folder/file.txt`. S3: `POST /storage/presign` with `{key,contentType}` returns a signed PUT URL and headers; `POST /storage/presign-download` with `{key}` signs a GET. Configure bucket CORS. Signed PUT does not enforce file size; local presign URLs are **not** authorization tokens. Restrict both HTTP and direct service access. [Example 04](examples/04-full-services/README.md) runs local storage by default.
 
-<a id="complete-api-signatures"></a>
-## 📖 Complete API signatures
+<a id="api-at-a-glance"></a>
+## 📖 API at a glance
 
-This is the **in-README reference for public package exports** (including helper subpaths). `?` means optional; `→` indicates a returned function or value. JavaScript signatures are intentionally compact; the linked [declaration files](src/index.d.ts) provide types. The examples above show real invocation, not invented entry points.
-
-### Entry points · routes · hooks
-
-| Import | Constructor | What `fetch` returns |
-| :--- | :--- | :--- |
-| `uflite/nano` | `flite({ routes?, mode?: 0 \| 1, match? }?)` | `Promise<raw value \| undefined>` (declaration narrows to Response) |
-| `uflite/lite` | `flite({ routes?, mode?, match?, before?, after?, error? }?)` | Result after global request hooks, or `undefined` |
-| `uflite` | `flite({ routes?, mode?, match?, before?, after?, error?, format?, missing? }?)` | Usually a Response; default 404/format/error hook |
-
-Each entry point also exports **default `flite`**. `routes` can be supplied as the app's route array; nano exposes it on `app.routes` (lite/full inherit this property).
-
-```text
-app.get/post/put/patch/delete/head/options/all(path, ...handlers) → app
-app.GET/POST/PUT/PATCH/DELETE/HEAD/OPTIONS/ALL(path, ...handlers) → app
-app.use(handler | router) / app.use(path, ...handlersOrRouters) → app
-app.fetch(request: Request, ...adapterArgs) → Promise<result | undefined>
-app.routes → registered route tuples
-match({ method, path }) → { handlers, params? } | undefined
-run(mode?: 0 | 1)(...handlers)(...args) → Promise<result | undefined>  // full export
-```
-
-`before` / `after` / `error` are dictionaries keyed by `all` or a **lowercase HTTP method**. Their handlers are `(req, ...args)`, `(result, req, ...args)`, `(err, req, ...args)`. `format(result)` controls full auto-formatting (`false` disables it); `missing()` controls the full fallback. If custom full `error` hooks are supplied, they replace the default.
-
-### Responses · `uflite`
-
-| Export | Signature | Behavior |
-| :--- | :--- | :--- |
-| `response` | `response(contentType?, transform?)(body, options?) → Response \| undefined` | Type + optional body transform; defaults to text/plain |
-| `text` | `text(body, options?) → Response \| undefined` | Text content type |
-| `html` | `html(body, options?) → Response \| undefined` | HTML content type |
-| `json` | `json(body, options?) → Response \| undefined` | JSON stringify; `json(undefined)` returns `undefined` |
-| `error` | `error(statusCode, messageOrObject?) → Response` or `error(err: Error) → Response` | JSON `{status,error}` / object details |
-| `status` | `new status(code, message?, data?) → Error` | Throw for status-aware full error handling |
-
-`options` accepts Fetch `ResponseInit` fields such as `status` and `headers`. Response helpers pass an existing **same-realm** `Response` through. Full defaults to `error(err.status || 500, err.message)`, **including 5xx messages**. Install an application error hook to redact internal errors.
-
-### HTTP middleware · `uflite/middlewares`
-
-Request factories return `Middleware(request, next?) → Response | void | Promise<…>`; named companions are response-phase functions `(response, request, next?) → Response | Promise<Response>` for `after.all`. In mode 0, wrap optional-next middleware as `req => middleware(req)` if a Fetch host supplies extra arguments; otherwise it may mistake an environment/server value for `next` (see [example 05](examples/05-full-middleware-resolvers/index.js)).
-
-| Factory signature | Main options | After companion |
-| :--- | :--- | :--- |
-| `cors({origin?,methods?,credentials?,maxAge?,allowedHeaders?,exposedHeaders?}?)` | Origin may be string, array or RegExp | `corsAfter` |
-| `logger({format?,skip?}?)` | `format: 'dev' \| 'combined' \| 'json'`; `skip(req)` | `loggerAfter` |
-| `rateLimit({windowMs?,max?,keyGenerator?,standardHeaders?}?)` | In-process limits; explicit trusted `keyGenerator(req)` | `rateLimitAfter` |
-| `bearerAuth({token?,verify?,realm?}?)` | Static token or sync/async `verify(token)` | — |
-| `basicAuth({users,realm?})` | Username→password record | — |
-| `bodyLimit({max?}?)` | Number of bytes or size string e.g. `'10mb'` | — |
-| `secureHeaders({contentSecurityPolicy?,xFrameOptions?,strictTransportSecurity?,xContentTypeOptions?,referrerPolicy?}?)` | Header policy | `secureHeadersAfter` |
-| `requestId({header?,generator?}?)` | Request ID generation | `requestIdAfter` |
-
-`rateLimit` uses one `unknown` bucket by default rather than trusting forwarded headers; use a trusted key and shared store for multi-instance deployments. `bodyLimit` counts streamed bytes from a cloned request; use an upstream connection/body cap too.
-
-### Service registry · `uflite` (full only)
-
-```text
-app.service(name: string, implementation) → ServiceWrapper
-app.service(name: string) → ServiceWrapper                 // lookup; throws if missing
-app.hooks({ before?, after?, error? }) → app              // global SERVICE hooks
-app.teardown() → app                                      // does not await cleanup
-service.hooks({ before?, after?, error? }) → service
-service.on('created'|'updated'|'patched'|'removed', handler) → service
-service.setup(...args) / service.teardown(...args) → Promise<void>
-service.find(params?) / service.get(id, params?)
-service.create(data, params?) / service.update(id, data, params?)
-service.patch(id, data, params?) / service.remove(id, params?) → Promise<result>
-```
-
-`implementation` can define those standard methods, custom functions, `setup(app,name)` and `teardown(app,name)`. Hooks use `all` and/or method names (`find`, `get`, `create`, `update`, `patch`, `remove`, custom). Auto-REST passes the **flat** request query as params. DBService direct `find` expects `params.query` for pagination; add a mapping layer if you require `$limit` via HTTP.
-
-### Built-in service factories · individual imports
-
-| Export / import | Signature & required option shape | Additional install |
-| :--- | :--- | :--- |
-| `createDBService` · `uflite/services/db` | `createDBService(getCollection?, {idField?,paginate?:{default,max},multi?,initialData?}?)` | `umosql@0.3.1` |
-| `createTableService` · `uflite/services/table` | `createTableService(dbAdapter)` | Supply an adapter with table/DDL operations |
-| `createLocalStorageService` · `uflite/services/localStorage` | `createLocalStorageService({basePath?,publicUrl?,maxFileSize?}?)` | No AWS SDK |
-| `createStorageService`, alias `createStorage` · `uflite/services/storage` | `createStorageService({type?:'local'\|'s3',basePath?,publicUrl?,maxFileSize?,bucket?,region?,accessKeyId?,secretAccessKey?,sessionToken?,endpoint?,forcePathStyle?,uploadExpiresIn?,downloadExpiresIn?,client?,presign?}?)` | Both AWS SDK packages, including local mode |
-| `createAuth` · `uflite/services/auth` | `await createAuth({adapter,baseURL,secret,trustedOrigins?,emailAndPassword?,secondaryStorage?,logger?,adapterConfig?,plugins?,extraPlugins?,...betterAuthOptions})` | `better-auth`; supply adapter (e.g. UMOSQL) |
-| `sqlAdapterFactory` · `uflite/services/auth` | `sqlAdapterFactory(base, config?) → Better Auth adapter factory` | `better-auth`; adapter integration |
-| `createACL` · `uflite/services/acl` | `createACL({enabled:boolean,rules:[{id,name?,permissions:['role:resource:method'],check?}]}) → {can(context,permission)}` | `uqry` |
-
-`createAuth`, `createACL` and `createLocalStorageService` are also the **default exports** of their individual subpaths. `uflite/services` re-exports the DB, table and storage factories (**not** Auth/ACL/localStorage) and eagerly loads UMOSQL and AWS; prefer subpaths. `createDBService()` creates an isolated in-memory collection. Standard CRUD `find({query:{$limit?,$skip?,$select?,$sort?},paginate?})` returns `{total,limit,skip,data}` unless `paginate:false`; its missing-record error has `code:404` but **not** HTTP `status:404`. `createTableService` implements `find/get/create/patch/remove` for authorized schema changes. Storage methods include `find/get/create/remove`, `upload/download`, `presignUpload/presignDownload`. Local upload/download HTTP routes must be protected; local presign links are **not** signed authorization tokens. S3 presigned PUT cannot enforce file size. [Example 04](examples/04-full-services/index.js) runs real Auth + ACL + DBService + StorageService.
-
-### Generic service hooks · `uflite/hooks` (also re-exported by full `uflite`)
-
-Every factory returns `(context, next?) → value | Promise<value>`, **not** a request middleware. `HookErrorOptions` is `{error?: {status?,message?,code?}, errors?: {reason: {status?,message?,code?}}}`. `options.target` usually defaults to `data`, `result` or `params.query` as indicated; it is **not** a raw HTTP field. Full argument signatures, grouped for scanning:
-
-| Flow | Data and query | Auth and result | Lifecycle |
+| Entry | Constructor | `fetch()` on a miss | Features |
 | :--- | :--- | :--- | :--- |
-| `iff(predicate, ...hooks)` | `requireFields(fields, options?)` | `requireAuth(options?)` | `auditFields(options?)` |
-| `unless(predicate, ...hooks)` | `setDefaults(defaults, options?)` | `requireRole(roles, options?)` | `publishEvent(publish, eventName, options?)` |
-| `throwIf(predicate, options?)` | `setField(field, value, options?)` | `requirePermission(permissions, options?)` | `sideEffect(effect, options?)` |
-| `disallow(options?)` | `preventChanges(fields, options?)` | `requireOwner(options?)` | `debug(logger?, options?)` |
-| `setData(valueOrFn)` | `removeFields(fields, options?)` | `scopeToActor(options?)` | |
-| `setResult(valueOrFn)` | `pickDataFields(fields, options?)` | `requireMethod(methods, options?)` | |
-| | `validateData(validator, options?)` | `rateLimit(consume, options?)` | |
-| | `transformData(transform, options?)` | `transformResult(transform, options?)` | |
-| | `preventEmptyData(options?)` | `pickResultFields(fields, options?)` | |
-| | `setQueryDefaults(defaults, options?)` | `omitResultFields(fields, options?)` | |
-| | `pickQueryFields(fields, options?)` | `mapResult(mapper)` | |
-| | `transformQuery(transform, options?)` | | |
+| `uflite/nano` | `flite({ routes?, mode?, match? }?)` | `Promise<undefined>` | Matching and raw handler results |
+| `uflite/lite` | `flite({ routes?, mode?, match?, before?, after?, error? }?)` | `Promise<undefined>` unless an after hook supplies a value | Global **request** hooks, no services |
+| `uflite` | `flite({ ..., format?, missing?, error? }?)` | JSON 404 `Response` by default | JSON formatting, services, in-process events and channels |
 
-**Full typed hook signatures** (public declaration shapes, included here so the README stands alone):
+Routes: `app.get/post/put/patch/delete/head/options/all(path, ...handlers)`, `app.use(path?, ...handlersOrRouters)` and `app.fetch(request, ...args)`. Mode 0 handlers receive `(request, ...adapterArgs)` and stop on a non-nullish result; mode 1 receives `(request, ...adapterArgs, next)` and requires `await next()` to continue. `json(body, options?)`, `text`, `html`, `error(code, message?)` and `new status(code, message?)` are exported from **full** `uflite`. Full's default error hook returns `err.message`, even for 5xx.
 
-```ts
-export type UfliteContext = {
-  app?: unknown;
-  service?: unknown;
-  method?: string;
-  path?: string;
-  id?: unknown;
-  data?: unknown;
-  result?: unknown;
-  params?: Record<string, any>;
-  [key: string]: any;
-};
-export type Hook = (context: UfliteContext, next?: (error?: unknown) => unknown) => unknown | Promise<unknown>;
-export type Predicate<T = any> = (value: T, ...args: any[]) => boolean | Promise<boolean>;
-export type Transformer<T = any, R = any> = (value: T, ...args: any[]) => R | Promise<R>;
-export type FieldResolver = (value: any, object: Record<string, any>, context?: any) => any | Promise<any>;
-export type HookErrorConfig = {
-  message?: string | ((context: UfliteContext, details?: Record<string, any>) => string | Promise<string>);
-  status?: number;
-  code?: string;
-};
-export type HookErrorOptions = {
-  /** Shared error defaults. */
-  error?: HookErrorConfig;
-  /** Per-failure overrides for hooks with distinct failure reasons. */
-  errors?: Record<string, HookErrorConfig>;
-};
-
-export function iff(predicate: Predicate<UfliteContext>, ...hooks: Hook[]): Hook;
-export function unless(predicate: Predicate<UfliteContext>, ...hooks: Hook[]): Hook;
-export function throwIf(predicate: Predicate<UfliteContext>, options?: HookErrorOptions): Hook;
-export function disallow(options?: HookErrorOptions): Hook;
-export function setData(value: any | ((context: UfliteContext) => any)): Hook;
-export function setResult(value: any | ((context: UfliteContext) => any)): Hook;
-export function requireFields(fields: string[], options?: { target?: string; allowEmpty?: boolean } & HookErrorOptions): Hook;
-export function setDefaults(defaults: Record<string, any> | ((context: UfliteContext) => any), options?: { target?: string }): Hook;
-export function setField(field: string, value: any | ((context: UfliteContext) => any), options?: { target?: string }): Hook;
-export function preventChanges(fields: string[], options?: { target?: string; original?: (context: UfliteContext) => any } & HookErrorOptions): Hook;
-export function removeFields(fields: string[], options?: { target?: string }): Hook;
-export function pickDataFields(fields: string[], options?: { target?: string }): Hook;
-export function validateData(validator: Transformer, options?: { target?: string } & HookErrorOptions): Hook;
-export function transformData(transform: Transformer, options?: { target?: string }): Hook;
-export function preventEmptyData(options?: { target?: string } & HookErrorOptions): Hook;
-export function setQueryDefaults(defaults: Record<string, any> | Function, options?: { target?: string }): Hook;
-export function pickQueryFields(fields: string[], options?: { target?: string }): Hook;
-export function transformQuery(transform: Transformer, options?: { target?: string }): Hook;
-export function requireAuth(options?: HookErrorOptions & { getUser?: (context: UfliteContext) => any }): Hook;
-export function requireRole(roles: string | string[], options?: HookErrorOptions & { getUser?: (context: UfliteContext) => any; roleField?: string }): Hook;
-export function requirePermission(permissions: string | string[], options?: HookErrorOptions & { getPermissions?: (context: UfliteContext) => any; match?: 'any' | 'all' }): Hook;
-export function requireOwner(options?: HookErrorOptions & { ownerField?: string; getActor?: (context: UfliteContext) => any; getRecord?: (context: UfliteContext) => any }): Hook;
-export function scopeToActor(options?: HookErrorOptions & { field?: string; getActor?: (context: UfliteContext) => any; getQuery?: (context: UfliteContext) => any }): Hook;
-export function requireMethod(methods: string | string[], options?: HookErrorOptions): Hook;
-export function rateLimit(consume: Function, options?: HookErrorOptions & { key?: Function; limit?: number; windowMs?: number }): Hook;
-export function transformResult(transform: Transformer, options?: { target?: string }): Hook;
-export function pickResultFields(fields: string[], options?: { target?: string }): Hook;
-export function omitResultFields(fields: string[], options?: { target?: string }): Hook;
-export function mapResult(mapper: Transformer): Hook;
-export function auditFields(options?: Record<string, any>): Hook;
-export function publishEvent(publish: Function, eventName: string, options?: Record<string, any>): Hook;
-export function sideEffect(effect: Function, options?: Record<string, any>): Hook;
-export function debug(logger?: any, options?: Record<string, any>): Hook;
-```
-
-`uflite/hooks/flow`, `/data`, `/auth`, `/lifecycle`, `/result` re-export the respective columns. `rateLimit(consume, options?)` here is a **service hook**, unlike HTTP `rateLimit(options?)`. Hooks can mutate `context.data` or `context.result`; [example 05](examples/05-full-middleware-resolvers/index.js) uses `requireFields` + `transformData`. For longer worked recipes see [HOOK_SPEC.md](docs/HOOK_SPEC.md) and [REAL_WORLD_HOOKS.md](docs/REAL_WORLD_HOOKS.md).
-
-### Predicates · `uflite/predicates`
-
-Direct predicates return booleans; curried predicates return `(value) → boolean`. `all`, `any`, `not`, `when` and `contextPredicate` can be asynchronous. Nothing here automatically attaches to a route.
-
-| Values & types | Comparison & sets | Paths & composition |
-| :--- | :--- | :--- |
-| `isPresent(value)` | `equals(expected)(value)` | `hasPath(path)(object)` |
-| `isNil(value)` | `notEquals(expected)(value)` | `pathEquals(path,expected)(object)` |
-| `isDefined(value)` | `oneOf(values)(value)` | `pathMatches(path,predicate)(object)` |
-| `isEmpty(value)` | `includes(expected)(value)` | `all(...predicates)(value)` |
-| `isString(value)` | `matches(pattern,flags?)(value)` | `any(...predicates)(value)` |
-| `isNumber(value)` | `greaterThan(threshold)(value)` | `not(predicate)(value)` |
-| `isInteger(value)` | `atLeast(threshold)(value)` | `when(predicate,yes,no?)(value)` |
-| `isBoolean(value)` | `lessThan(threshold)(value)` | `contextPredicate(predicate,{select?}?)(context)` |
-| `isArray(value)` | `atMost(threshold)(value)` | |
-| `isObject(value)` | `between(min,max,{inclusive?}?)(value)` | |
-| `isPlainObject(value)` | `lengthAtLeast(length)(value)` | |
-| `isNonEmptyString(value)` | `lengthAtMost(length)(value)` | |
-| `isEmail(value)` | `hasAny(values)(value)` | |
-| `isURL(value)` | `hasAll(values)(value)` | |
-| `isUUID(value)` | `truthy(value)` | |
-| | `falsy(value)` | |
-
-### Transformers · `uflite/transformers`
-
-Transformers return new values rather than mutating input objects; `compose`, `pipe`, `mapFields`, `setDefaults`, `mapArray` and `updatePath` may be async. The `setDefaults` name here is a **value transformer**, not the service hook of the same name.
-
-| Direct value functions | Factory → value transformer |
-| :--- | :--- |
-| `identity(value)` | `compose(...transformers)(value)`; `pipe` is an alias |
-| `trimString(value)` | `pick(keys)(value)`; `omit(keys)(value)` |
-| `lowercase(value)` | `renameFields(mapping)(value)` |
-| `uppercase(value)` | `mapFields(mapping)(value)` |
-| `normalizeEmail(value)` | `trimStrings({fields?,recursive?}?)(value)` |
-| `normalizeWhitespace(value)` | `removeEmpty({removeNull?,removeEmptyStrings?,removeEmptyArrays?,removeEmptyObjects?}?)(value)` |
-| `slugify(value)` | `setDefaults(defaults)(value)` |
-| `toNumber(value,{strict?}?)` | `mapArray(transformer)(value)` |
-| `toInteger(value,{strict?}?)` | `updatePath(path,transformer)(value)` |
-| `parseJSON(value,{strict?}?)` | |
-| `toBoolean(value,{strict?}?)` | |
-
-### Field resolvers · `uflite/resolvers`
-
-Each factory returns a field resolver `(current, object, context?) → value | Promise<value>`. Call it yourself in a route or service hook (or pass to your own mapping layer); these helpers do **not** implement `uresolver.resolve` or `virtual`.
-
-| Read / lookup | Decide / redact | Arrays / aggregate |
-| :--- | :--- | :--- |
-| `value()` | `resolveIf(predicate,resolver,{otherwise?}?)` | `mapArray(resolver)` |
-| `fromPath(path,{fallback?}?)` | `omitIf(predicate)` | `relationMany(fetchMany,{key?}?)` |
-| `fromContext(path,{fallback?}?)` | `redactIf(predicate,replacement?)` | `join(separator?)` |
-| `fallback(defaultValue)` | `mapValue(mapper)` | `count()` |
-| `lookup(fetchOne,{key?,fallback?}?)` | `relation(fetchOne,{key?,fallback?}?)` | `sum()` |
-| | | `pluck(field)` |
-
-```js
-import { fromPath } from 'uflite/resolvers'
-import { trimStrings } from 'uflite/transformers'
-import { isNonEmptyString } from 'uflite/predicates'
-
-const cleaned = trimStrings({ fields: ['name'] })({ name: '  Ada  ' })
-const valid = isNonEmptyString(cleaned.name) // true
-const label = fromPath('profile.name', { fallback: 'Anonymous' })(null, { profile: cleaned })
-```
-
-### In-process events · channels · other exports
-
-| Import | Signature | Notes |
-| :--- | :--- | :--- |
-| `uflite` | `app.on(event, fn) → app`, `app.off(event, fn) → app`, `app.emit(event, ...args) → app` | Synchronous local events |
-| `uflite` | `app.channel(name) → channel` | Local connection set, not a socket server |
-| `uflite` | `channel.join(conn, data?) → channel`, `channel.leave(conn) → channel` | `conn.send(string)` is application-supplied |
-| `uflite` | `channel.send(event,data) → channel`, `channel.filter(fn).send(event,data)` | Sends JSON `{event,data}` to connections; filter receives `(connectionData,eventData)` |
-| `uflite/utils` | `isObject(value) → boolean` | Object guard (also exported via predicates) |
-| `uflite` | `predicates`, `transformers`, `resolvers` namespaces | Same helpers as individual subpaths |
-| `uflite/package.json` | Package metadata | Exported JSON subpath |
-
-```js
-import { flite } from 'uflite'
-const app = flite()
-app.on('ready', count => console.log(count)).emit('ready', 1)
-const socket = { send: message => console.log(message) } // replace with a real connection
-app.channel('updates').join(socket, { room: 'demo' })
-app.channel('updates').filter(meta => meta.room === 'demo').send('created', { id: 1 })
-app.channel('updates').leave(socket)
-```
+Full-only `app.service(name, implementation)` exposes standard `find/get/create/update/patch/remove` methods and auto-routes **only implemented** methods. Hooks are registered with `service.hooks({before?,after?,error?})` or `app.hooks(...)`. Service hook context, ordering, factory options, HTTP middleware signatures, all predicate/transformer/resolver exports, channel methods and package subpaths are in the **[complete API reference](docs/API_REFERENCE.md)**. For hook recipes and error configuration, see [HOOK_SPEC](docs/HOOK_SPEC.md) and [REAL_WORLD_HOOKS](docs/REAL_WORLD_HOOKS.md).
 
 <a id="custom-matchers"></a>
 ## 🔌 Custom matchers (optional)
@@ -624,8 +397,7 @@ app.channel('updates').leave(socket)
 
 ```js
 import { PatternRouter } from 'hono/router/pattern-router'
-import { flite } from 'uflite/lite'
-import { json, error } from 'uflite'
+import { flite } from 'uflite'
 const external = new PatternRouter()
 external.add('GET', '/users/:id', req => ({ id: req.params.id }))
 const router = flite({ match: ({ method, path }) => {
@@ -637,8 +409,7 @@ const router = flite({ match: ({ method, path }) => {
     return handler(req)
   }) }
 } })
-export default { fetch: (request, ...args) => router.fetch(request, ...args)
-  .then(value => value ?? error(404, 'Not found')).then(json).catch(error) }
+export default router // full formats the matcher result and supplies a 404
 ```
 
 This normalization is verified for Hono 4's PatternRouter, RegExpRouter and TrieRouter in [matcher tests](tests/hono-router.spec.js); their internal match shapes may change with Hono versions. `trouter`/`itty-router` can also be adapted to the same `{handlers,params?}` contract. The `match` option does **not** make Hono a dependency.
@@ -709,7 +480,7 @@ The exported Fetch handler **is enough** for Workers; Bun and Deno can call it d
 
 | Runtime | Minimal integration | Additional package |
 | :--- | :--- | :--- |
-| Cloudflare Workers | `export default { fetch: (request, ...args) => router.fetch(request, ...args).then(json).catch(error) }` | None (bundle your code) |
+| Cloudflare Workers | `export default router` for full; nano can use the [introductory Fetch wrapper](#user-content-quick-start-skeletons) | None (bundle your code) |
 | Bun | `Bun.serve({fetch: request => handler.fetch(request),port:3000})` | None |
 | Deno | `Deno.serve(request => handler.fetch(request))` (import from `npm:uflite`) | None |
 | Hono composition | `hono.all('*', c => handler.fetch(c.req.raw))` | `hono` in **your** app |
@@ -720,13 +491,11 @@ The exported Fetch handler **is enough** for Workers; Bun and Deno can call it d
 ```js
 // Only for apps that choose Hono (npm install hono).
 import { Hono } from 'hono'
-import { flite, json, error } from 'uflite'
+import { flite } from 'uflite'
 const router = flite()
 router.get('/hello', () => ({ hello: 'uflite' }))
-const handler = { fetch: (request, ...args) =>
-  router.fetch(request, ...args).then(json).catch(error) }
 const hono = new Hono()
-hono.all('*', c => handler.fetch(c.req.raw))
+hono.all('*', c => router.fetch(c.req.raw))
 export default hono
 ```
 
@@ -766,5 +535,5 @@ test('GET /users/:id', async () => {
 - **Rate/body limits:** process-local rate limiting needs a trusted key and shared/upstream enforcement for multiple instances; body limits need an upstream transport cap.
 - **Runtime gaps:** persistent DB, S3 provider, Workers, Deno and browser UI were not deployed in these tests. See the [production follow-up](PRODUCTION_READINESS_REVIEW.md).
 - **Contributing:** add regression tests for behavior changes, run the commands above and review optional-integration imports. File defects in [GitHub issues](https://github.com/kethan/uflite/issues).
-- **License:** `package.json` declares **ISC**. A matching top-level license file still needs maintainer confirmation; third-party license texts are under [`licenses/`](licenses/).
+- **Maintainer & license:** package metadata names [Kethan Surana](https://github.com/kethan) and declares **ISC**. A matching top-level license file still needs maintainer confirmation; third-party license texts are under [`licenses/`](licenses/).
 - **Acknowledgments:** inspired by [itty-router](https://github.com/kwhitley/itty-router) (routing), [Hono](https://hono.dev) (middleware ideas) and [FeathersJS](https://feathersjs.com) (services). Inspiration is not a runtime dependency.

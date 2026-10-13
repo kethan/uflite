@@ -10,7 +10,7 @@ npm start
 
 Requires Bun, `umosql@0.3.1`, `better-auth`, `uqry` and the AWS SDK packages imported by `uflite/services/storage` (all are declared in `package.json`). The `file:../..` dependency uses this checkout. By default, UMOSQL's schemaless memory adapter is used by real Better Auth; `createDBService()` uses its own in-memory UMOSQL collection. Both are **ephemeral**. Local StorageService uses `./uploads` (files survive restart until removed). No AWS account is needed to run the default example. Set `AUTH_SECRET` (at least 32 random characters) and `AUTH_BASE_URL` for a real deployment; the built-in fallback secret is **only for local demo**.
 
-Real Better Auth HTTP routes are mounted at `/api/auth/*`. They create sessions; the service routes check the session cookie before execution. The service's before hook checks a real `createACL` policy; it does not trust a client-supplied `user` query field. Use the same cookie jar for all protected calls:
+Real Better Auth HTTP routes are mounted at `/api/auth/*`. They create sessions; the service routes check the session cookie before execution. The service's before hook checks a real `createACL` policy; it does not trust a client-supplied `user` query field. For this local demo, **every authenticated user is treated as a member** by a fixed permission string; replace that with application-specific roles and record-level checks before deploying multi-user data. Use the same cookie jar for all protected calls:
 
 ```sh
 curl -si localhost:3000/tasks                       # 401 Sign in first
@@ -27,4 +27,4 @@ curl -s -b cookies.txt 'localhost:3000/storage/download?key=notes%2Fhello.txt' #
 
 The framework auto-registers standard REST service routes. DBService owns pagination (`$limit`/`$skip` in `params.query` for direct calls); no second CRUD/pagination layer is added. This demo's REST wiring passes the flat request query as params, so avoid claiming REST `$limit` implements DBService pagination until explicitly adapted.
 
-`index.js` exports the Fetch handler; the tiny `server.js` wires it to `Bun.serve`. Neither Hono nor a Node HTTP adapter is installed.
+`index.js` exports the full app directly; its error hook and fallback supply responses. The tiny `server.js` wires it to `Bun.serve`. Neither Hono nor a Node HTTP adapter is installed.

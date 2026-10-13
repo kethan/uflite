@@ -69,6 +69,8 @@ const checks = [
   },
   async base => {
     assert.equal((await request(base, '/tasks')).status, 401);
+    assert.equal((await request(base, '/storage')).status, 401);
+    assert.equal((await request(base, '/storage/download?key=notes%2Fhello.txt')).status, 401);
     const signup = await request(base, '/api/auth/sign-up/email', {
       method: 'POST', headers: { origin: base }, data: { name: 'Ada', email: 'ada@example.test', password: 'strong-demo-password' }
     });
@@ -82,7 +84,9 @@ const checks = [
     const task = await body(created);
     assert.ok(task._id);
     assert.equal((await body(await request(base, '/tasks', { headers }))).data[0].name, 'First task');
-    assert.equal((await request(base, '/tasks/absent', { headers })).status, 500); // DBService notFound uses code, not status
+    const missing = await request(base, '/tasks/absent', { headers });
+    assert.equal(missing.status, 500); // DBService notFound uses code, not status
+    assert.equal((await body(missing)).error, 'Internal Server Error');
     const signed = await request(base, '/storage/presign', { headers, method: 'POST', data: { key: 'notes/hello.txt' } });
     assert.equal(signed.status, 200);
     const signedBody = await body(signed);
@@ -113,11 +117,13 @@ const checks = [
 for (const [index, name] of names.entries()) {
   const cwd = join(root, 'examples', name);
   execFileSync(process.platform === 'win32' ? 'npm.cmd' : 'npm',
-    ['install', '--no-audit', '--no-fund', '--ignore-scripts'], { cwd, stdio: 'inherit' });
+    ['install'], { cwd, stdio: 'inherit' });
   const port = await freePort();
   const base = `http://localhost:${port}`;
-  const child = spawn('bun', ['server.js'], {
+  // Run the same `npm start` script documented in each example README.
+  const child = spawn(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['start'], {
     cwd,
+    detached: process.platform !== 'win32',
     env: { ...process.env, PORT: String(port), AUTH_BASE_URL: base, NODE_ENV: 'development' },
     stdio: ['ignore', 'pipe', 'pipe']
   });
@@ -139,6 +145,12 @@ for (const [index, name] of names.entries()) {
     process.exitCode = 1;
     break;
   } finally {
-    child.kill();
+    // npm spawns a shell and then Bun; terminate the whole example server tree.
+    try {
+      if (process.platform === 'win32') child.kill();
+      else if (child.pid) process.kill(-child.pid, 'SIGTERM');
+    } catch (err) {
+      if (err.code !== 'ESRCH') throw err;
+    }
   }
 }
