@@ -35,3 +35,6 @@ jobs:
 
             - name: Check production package consumers
               run: bun run test:package
+
+            - name: Run example HTTP smoke tests
+              run: bun run test:examples

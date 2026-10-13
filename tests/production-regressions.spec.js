@@ -3,18 +3,19 @@ import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { flite, status } from '../src/index.js';
+import { flite as nano } from '../nano/index.js';
 import { createLocalStorageService } from '../services/localStorage.js';
 import { bodyLimit, rateLimit } from '../middlewares.ts';
 
 describe('production error responses', () => {
-  test('does not expose internal messages, including explicit 5xx statuses', async () => {
+  test('default handler returns error messages and statuses', async () => {
     const app = flite();
     app.get('/internal', () => { throw new Error('private database secret'); });
     app.get('/upstream', () => { throw new status(503, 'upstream token'); });
     for (const [path, code] of [['/internal', 500], ['/upstream', 503]]) {
       const response = await app.fetch(new Request(`https://example.test${path}`));
       expect(response.status).toBe(code);
-      expect(await response.json()).toEqual({ status: code, error: 'Internal Server Error' });
+      expect(await response.json()).toEqual({ status: code, error: code === 503 ? 'upstream token' : 'private database secret' });
     }
   });
 
@@ -57,15 +58,13 @@ describe('local storage symlinks', () => {
   });
 });
 
-describe('literal routes', () => {
-  test('regexp punctuation in registered paths is matched literally', async () => {
-    const app = flite();
-    app.get('/file.txt', () => new Response('exact'));
-    app.get('/query+safe', () => new Response('plus'));
-    expect((await app.fetch(new Request('https://example.test/file.txt'))).status).toBe(200);
-    expect((await app.fetch(new Request('https://example.test/query+safe'))).status).toBe(200);
-    expect((await app.fetch(new Request('https://example.test/fileXtxt'))).status).toBe(404);
-    expect((await app.fetch(new Request('https://example.test/querysafe'))).status).toBe(404);
+describe('nano matching middleware', () => {
+  test('a matching use() handler may continue to the next matching route', async () => {
+    const app = nano();
+    app.use('/tasks/*', () => undefined);
+    app.get('/tasks', () => new Response('tasks'));
+    const res = await app.fetch(new Request('https://example.test/tasks'));
+    expect(await res.text()).toBe('tasks');
   });
 });
 

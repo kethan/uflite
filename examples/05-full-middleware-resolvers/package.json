@@ -1,0 +1,12 @@
+{
+  "name": "uflite-05-full-middleware-resolvers",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "uflite": "file:../..",
+    "@hono/node-server": "^1.19.0"
+  }
+}

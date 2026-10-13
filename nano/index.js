@@ -22,7 +22,7 @@ export const flite = ({ routes = [], ...others } = {}) => ({
     routes,
     ...others,
   fetch: async (request, ...args) => {
-        const url = new URL(request.url), path = url.pathname, mt = request.method, exec = run(others.mode);
+        const url = new URL(request.url), path = url.pathname, mt = request.method, exec = hs => run(others.mode)(hs);
         let result, match;
         request.query = { __proto__: null };
         for (let [k, v] of url.searchParams)
