@@ -1,6 +1,6 @@
 # Public API reference
 
-This reference lists public package exports (including helper subpaths). `?` means optional; `→` indicates a returned function or value. JavaScript signatures are intentionally compact; the linked [declaration files](../src/index.d.ts) provide types. For runnable invocations, see the [README](../readme.md) and the five linked example projects.
+This reference lists public package exports (including helper subpaths). `?` means optional; `→` indicates a returned function or value. JavaScript signatures are intentionally compact; the linked [declaration files](../src/index.d.ts) provide types. For runnable invocations, see the [README](../README.md) and the five linked example projects.
 
 ### Entry points · routes · hooks
 
