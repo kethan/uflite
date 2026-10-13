@@ -9,7 +9,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 if (!existsSync(join(root, 'dist/index.es.js'))) {
   throw new Error('Run `bun run build` from the repository root before checking examples');
 }
-const names = ['01-nano-crud', '02-nano-practical', '03-lite-notes', '04-full-services', '05-full-middleware-resolvers'];
+const names = ['01-nano-crud', '02-nano-practical', '03-lite-notes', '04-full-services', '05-full-middleware-resolvers', '06-auth-jwt-acl'];
 const freePort = () => new Promise((resolve, reject) => {
   const server = createServer();
   server.once('error', reject);
@@ -113,6 +113,40 @@ const checks = [
     assert.equal((await body(await request(base, '/item-count', { headers }))).count, 1);
     assert.equal((await request(base, '/items/nope', { headers })).status, 404);
     assert.equal((await body(await request(base, `/items/${item.id}`, { method: 'DELETE', headers }))).id, item.id);
+  },
+  async base => {
+    assert.equal((await request(base, '/api/me')).status, 401);
+    const signup = await request(base, '/api/auth/sign-up/email', {
+      method: 'POST', headers: { origin: base },
+      data: { name: 'Ada', email: 'ada@example.test', password: 'strong-demo-password' }
+    });
+    assert.equal(signup.status, 200, `JWT demo signup: ${await signup.text()}`);
+    const wrongPassword = await request(base, '/api/auth/sign-in/email', {
+      method: 'POST', headers: { origin: base },
+      data: { email: 'ada@example.test', password: 'wrong-demo-password' }
+    });
+    assert.equal(wrongPassword.status, 401);
+    const login = await request(base, '/api/auth/sign-in/email', {
+      method: 'POST', headers: { origin: base },
+      data: { email: 'ada@example.test', password: 'strong-demo-password' }
+    });
+    assert.equal(login.status, 200, `JWT demo login: ${await login.clone().text()}`);
+    const loginBody = await body(login);
+    assert.ok(loginBody.token && !loginBody.token.includes('.'), 'Login returns an opaque session token');
+    const cookies = login.headers.getSetCookie().map(value => value.split(';')[0]).join('; ');
+    assert.ok(cookies.includes('session_token'));
+    assert.equal((await request(base, '/api/auth/token')).status, 401);
+    const issued = await request(base, '/api/auth/token', { headers: { cookie: cookies } });
+    assert.equal(issued.status, 200);
+    const { token } = await body(issued);
+    assert.equal(token.split('.').length, 3, 'Expected signed JWT');
+    const bearer = { authorization: `Bearer ${token}` };
+    const profile = await request(base, '/api/me', { headers: bearer });
+    assert.equal(profile.status, 200);
+    assert.equal((await body(profile)).id, loginBody.user.id);
+    assert.equal((await request(base, '/api/admin', { headers: bearer })).status, 403);
+    assert.equal((await request(base, '/api/me', { headers: { authorization: 'Bearer invalid' } })).status, 401);
+    assert.equal((await request(base, '/api/me', { headers: { authorization: `Bearer ${token.slice(0, -4)}xxxx` } })).status, 401);
   }
 ];
 

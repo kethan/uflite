@@ -7,8 +7,8 @@ This review records the state of the branch after the README/examples work. It i
 ## Maintainer-requested design decisions
 
 - `plugins.js` uses the original compact one-line `compile` implementation. This preserves the byte-focused design. Literal regexp punctuation in paths (for example `.`) is interpreted as regexp syntax rather than escaped; avoid assuming a route with punctuation matches only the literal string.
-- Full `uflite` retains its original default error hook: `all: [(err) => error(err.status || 500, err.message)]`. It includes internal exception messages in 5xx responses. Apps handling secrets should install a custom error hook that logs privately and redacts 5xx, as demonstrated in runnable examples 03, 04 and 05. Example 01 deliberately uses the minimal `.then(json).catch(error)` wrapper, which exposes thrown messages unless customized.
-- The README and five runnable examples import `json` from `uflite`, not `Response.json` as an example API. Nano/lite do not export the helper; importing it from full brings the full entry into the bundle.
+- Full `uflite` retains its original default error hook: `all: [(err) => error(err.status || 500, err.message)]`. It includes internal exception messages in 5xx responses. Apps handling secrets should install a custom error hook that logs privately and redacts 5xx, as demonstrated in runnable examples 03–06. Example 01 deliberately uses the minimal `.then(json).catch(error)` wrapper, which exposes thrown messages unless customized.
+- The README and six runnable examples import `json` from `uflite`, not `Response.json` as an example API. Nano/lite do not export the helper; importing it from full brings the full entry into the bundle.
 
 ## Fixes still on this branch
 
@@ -23,7 +23,7 @@ This review records the state of the branch after the README/examples work. It i
 - `bun install --frozen-lockfile`, `bun run build`, `bun test`: **701 pass, 0 fail, 1,016 assertions across 21 files**.
 - `bun run test:types`: passed (middleware source and NodeNext public-consumer sample).
 - `bun run test:package`: passed (packed ESM/CommonJS/TypeScript imports without production dependencies; DB-only subpath with only `umosql`).
-- `bun run test:examples`: passed. It runs the documented `npm install` and `npm start` for each Bun-hosted example and checks HTTP success and error cases, CRUD, Better Auth signup, ACL-protected DBService and local storage.
+- `bun run test:examples`: passed. It runs the documented `npm install` and `npm start` for each Bun-hosted example and checks HTTP success and error cases, CRUD, Better Auth signup/login, ACL-protected DBService and local storage, and JWT issuance/verification with 401/403 responses.
 - `bun run bench:size` (Bun 1.4.3): nano 1,385 B minified / 799 B gzip; lite 2,470 / 1,251; full 6,134 / 2,690. Fixture: one browser-target GET route; not a universal performance claim.
 - The README's internal headings and relative file links were checked. StackBlitz itself was **not** opened or tested; no StackBlitz links are supplied.
 

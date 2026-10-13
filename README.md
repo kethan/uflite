@@ -20,7 +20,7 @@ hooks with `lite`, or use the full entry for response helpers, services, events 
 - [Choose an entry point](#choose-an-entry-point)
 - [Size comparison](#size-comparison)
 - [Install and optional integrations](#install-and-optional-integrations)
-- [Five runnable examples](#five-runnable-examples)
+- [Six runnable examples](#six-runnable-examples)
 - [Routing, hooks and services](#routing-hooks-and-services)
 - [Practical patterns](#practical-patterns)
 - [API at a glance](#api-at-a-glance)
@@ -113,7 +113,7 @@ bun add uflite       # use Bun.serve or export a Fetch handler
 ```
 
 **No Hono, Node adapter or web server package is needed by uflite.** A Fetch runtime such as
-Bun, Cloudflare Workers or Deno supplies the HTTP host. The five local HTTP projects below run
+Bun, Cloudflare Workers or Deno supplies the HTTP host. The six local HTTP projects below run
 with Bun. Optional integration packages are installed **by your application** when used:
 
 - **Core:** `uflite`, `/nano`, `/lite`, `/middlewares`, `/hooks`, `/predicates`,
@@ -131,17 +131,18 @@ with Bun. Optional integration packages are installed **by your application** wh
 `better-auth` and `uqry` are imported separately, not by the services barrel. Import paths and
 signatures are in the [complete reference](#complete-api-reference).
 
-## Five runnable examples
+## Six runnable examples
 
 In a checkout, first run **`bun install && bun run build`** at the root. Each project has its
 own `package.json`, uses `file:../..` for the built checkout, and has documented `curl`
-success/error flows. Each exports a Fetch handler from `index.js`; its existing `server.js`
-calls `Bun.serve` on port 3000 (`PORT` overrides it). **None installs Hono or a Node adapter.**
+success/error flows. Projects 01–05 export a Fetch handler from `index.js` and have a tiny
+`server.js` calling `Bun.serve`; 06 auto-serves its single `index.js`. Each defaults to port
+3000 (`PORT` overrides it). **None installs Hono or a Node adapter.**
 
 Run one project, then follow its README's `curl` requests:
 
 ```bash
-cd examples/01-nano-crud # or choose 02, 03, 04 or 05 below
+cd examples/01-nano-crud # or choose 02–06 below
 npm install
 npm start
 ```
@@ -156,12 +157,23 @@ npm start
    real Better Auth sessions, ACL and local storage (S3 optional).
 5. **[Full lifecycle](examples/05-full-middleware-resolvers/README.md)** — HTTP middleware,
    service hooks, resolvers, predicates and mutation events.
+6. **[Login, JWT and ACL](examples/06-auth-jwt-acl/README.md)** — real sign-up/sign-in,
+   cookie-gated JWT issuance, verified bearer requests and ACL allow/deny. One Bun file.
 
 > [!NOTE]
 > **StackBlitz:** these local projects depend on `file:../..` and a built checkout. No
 > StackBlitz run or standalone-folder import has been verified; there are no fabricated launch
 > links. Replace the local dependency with a published version only after verifying the exact
 > example on StackBlitz.
+
+**Feature map:** 01–02 cover routing, query params and mounting; 03 request hooks;
+04 DBService, auth/ACL and storage; 05 middleware, service hooks, transformers,
+resolvers, predicates and events; 06 JWT login and ACL. For channels, custom
+matchers, browser routing and complete signatures, see
+[events and channels](#events-channels-and-other-exports),
+[custom matchers](#custom-matchers), [browser routing](#browser-spa-and-react-routing)
+and the [API reference](#complete-api-reference). This is a guide to the available
+features, **not** a claim that a single example runs every optional integration.
 
 ## Routing, hooks and services
 
@@ -414,6 +426,38 @@ until you add authorization, and `auth`/`acl` need a trusted session guard. Set 
 and HTTP verification. UMOSQL memory resets on restart. DBService REST passes flat query params
 while its direct `find({query:{$limit,$skip}})` expects nested `query`; missing-record errors
 set `code:404`, not HTTP `status`.
+
+### JWT login and ACL (optional)
+
+uflite exports **`createAuth`** and **`createACL`** factories, not classes named
+`authService`/`ACLservice`. This is the small core of
+[example 06](examples/06-auth-jwt-acl/README.md); `adapter`, `baseURL`, `secret`
+and the request's `token` must come from trusted application wiring:
+
+```js
+import { jwt } from 'better-auth/plugins'
+import { createAuth } from 'uflite/services/auth'
+import { createACL } from 'uflite/services/acl'
+
+const auth = await createAuth({ adapter, baseURL, secret, extraPlugins: [jwt()] })
+const acl = createACL({ enabled: true, rules: [
+  { id: 'profile', permissions: ['member:profile:read'],
+    check: { 'user.id': { $exists: true } } }
+] })
+const { payload } = await auth.api.verifyJWT({ body: { token } })
+const allowed = !!payload?.sub &&
+  acl.can({ user: { id: payload.sub } }, 'member:profile:read')
+```
+
+Sign-up and login use Better Auth's real `/api/auth/*` endpoints. Login's
+`token` field is an **opaque session token, not a JWT**: an authenticated
+`GET /api/auth/token` with its session cookie issues the signed JWT. Protected
+requests can then send that JWT as `Authorization: Bearer ...`; verify its
+signature, issuer, audience and expiry server-side before ACL. Better Auth's
+optional `plugins: { bearer: true }` accepts a *session bearer token*, not the
+JWT demonstrated here. The static `bearerAuth({ token: 'demo-token' })` in
+example 05 is likewise not JWT verification. JWTs do not provide immediate
+session revocation; use short expiry and a revocation strategy as needed.
 
 ### Local storage and optional S3
 
@@ -954,7 +998,7 @@ package:
 - **Cloudflare Workers:** export a full app as the default Fetch handler, or use the
   [introductory nano pattern](#nano-fetch-wrappers-and-error-policy). Bundle your code.
 - **Bun:** the [one-file quick start](#quick-start) uses CLI auto-serving; the five
-  existing projects call `Bun.serve({fetch: request => handler.fetch(request),port:3000})`.
+  original projects call `Bun.serve({fetch: request => handler.fetch(request),port:3000})`.
 - **Deno:** import from `npm:uflite`, then
   `Deno.serve(request => handler.fetch(request))`.
 - **Hono composition (optional):** `hono.all('*', c => handler.fetch(c.req.raw))`;
@@ -989,7 +1033,7 @@ bun run build          # dist is required before package/example checks
 bun test               # unit/integration tests
 bun run test:types     # public NodeNext declarations + middleware
 bun run test:package   # packed ESM, CommonJS, TypeScript consumers
-bun run test:examples  # installs/starts five Bun projects; tests success and error HTTP flows
+bun run test:examples  # installs/starts six Bun projects; tests success and error HTTP flows
 bun run bench:size     # reproduce the size table for this toolchain
 ```
 
