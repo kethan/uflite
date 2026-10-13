@@ -1,4 +1,3 @@
-import { serve } from '@hono/node-server';
 import { flite } from 'uflite/lite';
 import { json, error, status } from 'uflite';
 import { store } from './notes.js';
@@ -43,8 +42,7 @@ app.patch('/notes/:id', async req => { found(req.params.id); return json(store.u
 app.delete('/notes/:id', req => { found(req.params.id); return json(store.remove(req.params.id)); });
 
 export { app };
-if (process.env.NODE_ENV !== 'test') {
-  const port = Number(process.env.PORT || 3000);
-  serve({ fetch: app.fetch, port });
-  console.log(`Lite notes: http://localhost:${port}`);
-}
+export const handler = {
+  fetch: (request, ...args) => app.fetch(request, ...args).then(json).catch(error)
+};
+export default handler;

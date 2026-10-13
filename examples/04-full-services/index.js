@@ -1,6 +1,5 @@
-import { serve } from '@hono/node-server';
 import { createSchemalessAdapter } from 'umosql/schemaless';
-import { flite, json, status } from 'uflite';
+import { flite, json, error, status } from 'uflite';
 import { createDBService } from 'uflite/services/db';
 import { createAuth } from 'uflite/services/auth';
 import { createACL } from 'uflite/services/acl';
@@ -18,8 +17,7 @@ const acl = createACL({ enabled: true, rules: [{
 }] });
 
 const app = flite({
-  // Better Auth/Node adapter responses can come from a different Response realm.
-  // Every route below returns a Response already, so skip full-app auto-formatting.
+  // Every route below returns a Response, so skip the automatic formatter.
   format: false,
   before: { all: [async req => {
     const pathname = new URL(req.url).pathname;
@@ -50,7 +48,7 @@ const storage = process.env.S3_BUCKET ? createStorageService({
 app.service('storage', storage);
 
 export { app };
-if (process.env.NODE_ENV !== 'test') {
-  serve({ fetch: app.fetch, port });
-  console.log(`Full services: ${baseURL} (memory DB and ${storage.type} storage)`);
-}
+export const handler = {
+  fetch: (request, ...args) => app.fetch(request, ...args).then(json).catch(error)
+};
+export default handler;

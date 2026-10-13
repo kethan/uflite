@@ -116,7 +116,7 @@ for (const [index, name] of names.entries()) {
     ['install', '--no-audit', '--no-fund', '--ignore-scripts'], { cwd, stdio: 'inherit' });
   const port = await freePort();
   const base = `http://localhost:${port}`;
-  const child = spawn(process.execPath, ['index.js'], {
+  const child = spawn('bun', ['server.js'], {
     cwd,
     env: { ...process.env, PORT: String(port), AUTH_BASE_URL: base, NODE_ENV: 'development' },
     stdio: ['ignore', 'pipe', 'pipe']

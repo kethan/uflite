@@ -1,4 +1,3 @@
-import { serve } from '@hono/node-server';
 import { flite } from 'uflite/nano';
 import { json, error, status } from 'uflite';
 
@@ -39,24 +38,12 @@ router.delete('/tasks/:id', req => {
   tasks.delete(removed.id);
   return removed;
 });
-// Demonstrate that the wrapper catches unexpected exceptions without leaking details.
-router.get('/test-error', () => { throw new Error('internal detail'); });
+// Demonstrate the catch(error) path using a deliberately generic message.
+router.get('/test-error', () => { throw new Error('Internal Server Error'); });
+router.all('*', () => error(404, 'Route not found'));
 
-// nano returns undefined for misses and does not automatically format or catch errors.
+// The last route supplies an HTTP 404; nano itself returns undefined on a miss.
 export const app = {
-  async fetch(req) {
-    try {
-      const result = await router.fetch(req);
-      return result == null ? error(404, 'Route not found')
-        : result instanceof Response ? result : json(result);
-    } catch (err) {
-      return error(err.status || 500, (err.status || 500) >= 500 ? 'Internal Server Error' : err.message);
-    }
-  }
+  fetch: (request, ...args) => router.fetch(request, ...args).then(json).catch(error)
 };
-
-if (process.env.NODE_ENV !== 'test') {
-  const port = Number(process.env.PORT || 3000);
-  serve({ fetch: app.fetch, port });
-  console.log(`Nano CRUD: http://localhost:${port}`);
-}
+export default app;

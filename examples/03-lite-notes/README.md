@@ -6,7 +6,7 @@ From the repository root: `bun install && bun run build`. Then:
 cd examples/03-lite-notes && npm install && npm start
 ```
 
-Node 22+ with `@hono/node-server`. `flite` is imported from `uflite/lite`; `json`, `error`, `status` are imported from full `uflite` because lite does not export response helpers. `notes.js` is a plain in-memory module; lite does **not** implement `app.service()`. The before hooks time requests and validate POST via `req.clone()`, the after hook adds `x-duration-ms` and handles misses, and the error hook formats thrown 4xx/5xx errors. Full uflite adds the service registry and service lifecycle hooks.
+Bun with no HTTP adapter dependency. `flite` is imported from `uflite/lite`; `json`, `error`, `status` are imported from full `uflite` because lite does not export response helpers. `notes.js` is a plain in-memory module; lite does **not** implement `app.service()`. The before hooks time requests and validate POST via `req.clone()`, the after hook adds `x-duration-ms` and handles misses, and the error hook formats thrown 4xx/5xx errors. Full uflite adds the service registry and service lifecycle hooks.
 
 ```sh
 curl -si localhost:3000/notes                                     # 200 [] and x-duration-ms
@@ -20,3 +20,7 @@ curl -si localhost:3000/unknown                                   # 404 Route no
 ```
 
 Data resets on restart; no external DB or credentials.
+
+`index.js` exports a Fetch handler with `.then(json).catch(error)`; the lite after hook supplies 404 on misses.
+
+`index.js` is a Fetch handler; `server.js` is a tiny `Bun.serve` runner. Neither Hono nor a Node HTTP adapter is installed.

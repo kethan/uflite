@@ -1,4 +1,3 @@
-import { serve } from '@hono/node-server';
 import { flite } from 'uflite/nano';
 import { json, error } from 'uflite';
 
@@ -29,10 +28,8 @@ tasks.post('/tasks', async req => {
 
 const router = flite();
 router.use('/api', tasks); // mounted paths: /api/tasks and /api/tasks/:id
-export const app = { fetch: async req => await router.fetch(req) ?? error(404, 'Route not found') };
-
-if (process.env.NODE_ENV !== 'test') {
-  const port = Number(process.env.PORT || 3000);
-  serve({ fetch: app.fetch, port });
-  console.log(`Nano practical: http://localhost:${port}`);
-}
+router.all('*', () => error(404, 'Route not found'));
+export const app = {
+  fetch: (request, ...args) => router.fetch(request, ...args).then(json).catch(error)
+};
+export default app;

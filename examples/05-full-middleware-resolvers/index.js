@@ -1,5 +1,4 @@
-import { serve } from '@hono/node-server';
-import { flite, json, status } from 'uflite';
+import { flite, json, error, status } from 'uflite';
 import { requestId, bearerAuth, requestIdAfter } from 'uflite/middlewares';
 import { requireFields, transformData } from 'uflite/hooks';
 import { trimStrings } from 'uflite/transformers';
@@ -11,10 +10,10 @@ let nextId = 1;
 const addId = requestId();
 const guard = bearerAuth({ token: 'demo-token' });
 const app = flite({
-  // All routes return Responses. Avoid reformatting responses from a different Node realm.
+  // All routes already return Responses.
   format: false,
-  // Mode 0: the Node adapter passes an extra environment argument, so forward only
-  // the Request to optional-next middleware (otherwise it may mistake env for next).
+  // In mode 0, forward only the Request to optional-next middleware;
+  // Fetch runtimes may pass additional arguments to the exported handler.
   before: { all: [req => addId(req), req => guard(req)] },
   after: { all: [(res, req) => res?.headers ? requestIdAfter(res, req) : res] },
   error: { all: [err => json({ error: (err.status || 500) >= 500 ? 'Internal Server Error' : err.message }, { status: err.status || 500 })] }
@@ -48,8 +47,7 @@ items.hooks({
 items.on('created', item => console.log('Created item', item.id));
 app.get('/item-count', async () => json({ count: await items.count() }));
 export { app };
-if (process.env.NODE_ENV !== 'test') {
-  const port = Number(process.env.PORT || 3000);
-  serve({ fetch: app.fetch, port });
-  console.log(`Full service lifecycle: http://localhost:${port}`);
-}
+export const handler = {
+  fetch: (request, ...args) => app.fetch(request, ...args).then(json).catch(error)
+};
+export default handler;

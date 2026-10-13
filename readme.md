@@ -1,6 +1,6 @@
 # 🪶 μflite
 
-**A byte-minded Fetch router that grows with your application.** Start with `nano`, add request hooks with `lite`, or use the full entry for response helpers, services, events and channels. No mandatory runtime dependencies.
+**A byte-minded Fetch router that grows with your application.** Start with `nano`, add request hooks with `lite`, or use the full entry for response helpers, services, events and channels. **No mandatory runtime dependencies or HTTP adapter.**
 
 [![Tests](https://github.com/kethan/uflite/actions/workflows/node.js.yml/badge.svg)](https://github.com/kethan/uflite/actions/workflows/node.js.yml) [![npm](https://img.shields.io/npm/v/uflite?style=flat-square)](https://www.npmjs.com/package/uflite) [![License: ISC](https://img.shields.io/badge/license-ISC-blue?style=flat-square)](#user-content-testing-security-and-license) [![Dependencies: 0](https://img.shields.io/badge/mandatory_dependencies-0-brightgreen?style=flat-square)](#user-content-install-and-optional-integrations)
 
@@ -9,7 +9,7 @@
 | Three independently importable entry points | Sequential or onion-style handlers, request and service hooks | Database, auth and storage are optional integrations |
 
 > [!TIP]
-> **Get running:** `npm install uflite @hono/node-server` → copy the [full Node quickstart](#user-content-quick-start-full-node-server) → `node server.mjs` → `curl localhost:3000/hello/Ada`.
+> **Fastest start:** `bun add uflite` → copy the [Bun + Fetch quickstart](#user-content-quick-start-skeletons) → `bun server.js`. The same exported Fetch handler is usable in a Worker; Bun's server is a five-line convenience, not a uflite requirement.
 
 <a id="contents"></a>
 ## 🧭 Contents
@@ -17,8 +17,9 @@
 | Start here | Build an app | Reference & operations |
 | :--- | :--- | :--- |
 | [Choose an entry point](#user-content-choose-an-entry-point) | [Quick-start skeletons](#user-content-quick-start-skeletons) | [Complete API signatures](#user-content-complete-api-signatures) |
-| [Size comparison](#user-content-size-comparison) | [Five tested examples](#user-content-five-runnable-examples) | [Runtime adapters](#user-content-runtime-adapters) |
-| [Install & optional integrations](#user-content-install-and-optional-integrations) | [Routing, hooks & services](#user-content-routing-hooks-and-services) | [Test, security & license](#user-content-testing-security-and-license) |
+| [Size comparison](#user-content-size-comparison) | [Five tested examples](#user-content-five-runnable-examples) | [Runtime integrations](#user-content-runtime-adapters) |
+| [Install & optional integrations](#user-content-install-and-optional-integrations) | [Practical patterns](#user-content-practical-patterns) | [Test, security & license](#user-content-testing-security-and-license) |
+| [Routing, hooks & services](#user-content-routing-hooks-and-services) | [Browser SPA / React](#user-content-browser-routing) | [Custom matchers](#user-content-custom-matchers) |
 
 <a id="choose-an-entry-point"></a>
 ## 🎯 Choose an entry point
@@ -36,38 +37,36 @@
 ```js
 import { flite as nano } from 'uflite/nano' // routing only
 import { flite as lite } from 'uflite/lite' // routing + global request hooks
-import { flite, json } from 'uflite'       // full features + response helpers
+import { flite, json, error } from 'uflite' // full features + response helpers
 ```
 
 > [!IMPORTANT]
-> `json` belongs to **`uflite`**, not `uflite/nano` or `uflite/lite`. You can use it with a nano/lite router by importing from full, as the examples do; that import also affects bundle size. Nano/lite return raw values or `undefined` for misses, not automatic JSON/404 responses. Only full registers services.
+> `json` and `error` belong to **`uflite`**, not `uflite/nano` or `uflite/lite`. Importing the helpers from full alongside a nano/lite router works, but increases the bundle. For the smallest possible build, return native `Response` objects instead. Nano/lite return raw values or `undefined` on misses; only full formats responses and registers services.
 
 <a id="size-comparison"></a>
 ## 📊 Size comparison
 
-Measured using `bun run bench:size` (Bun **1.4.3**; minified, browser-target, bundled **one GET `/hello` route returning a Response**, gzip with the benchmark's settings):
+Measured with `bun run bench:size` (Bun **1.4.3**; browser-target, minified, bundled **one GET `/hello` route returning a Response**, then gzip):
 
 | Entry | Minified | Gzip | What it includes |
 | :--- | ---: | ---: | :--- |
 | `uflite/nano` | **1,385 B** | **799 B** | Routing only |
 | `uflite/lite` | **2,470 B** | **1,251 B** | Routing + request hooks |
 | `uflite` | **6,134 B** | **2,690 B** | Full framework |
-| `hono` 4.10.6 | 19,026 B | 7,623 B | Same one-route fixture |
-| `itty-router` 4.2.2 | 1,122 B | 689 B | Same one-route fixture |
+| `hono` 4.10.6 | 19,026 B | 7,623 B | Same one-route benchmark fixture |
+| `itty-router` 4.2.2 | 1,122 B | 689 B | Same one-route benchmark fixture |
 
-Nano is **110 B larger gzip** than itty-router in this fixture; lite/full are smaller than Hono. These are fixture sizes, not throughput or a promise about your app (for example, importing full `json` into nano increases its bundle). Rerun the benchmark after changes; `bun run bench`, `bench:cmp`, `bench:mitata` and `bench:url` measure different performance questions.
+Nano is **110 B larger gzip** than itty-router in this fixture; lite/full are smaller than Hono. The comparisons are *benchmarks*, not dependencies or throughput claims. Importing full `json` into nano changes the resulting bundle. Reproduce with `bun run bench:size`; `bun run bench`, `bench:cmp`, `bench:mitata` and `bench:url` test other performance questions.
 
 <a id="install-and-optional-integrations"></a>
 ## 📦 Install & optional integrations
 
 ```sh
-npm install uflite
-# or: bun add uflite
-# Node Fetch adapter for the quickstarts (NOT a uflite dependency):
-npm install @hono/node-server
+bun add uflite       # use Bun.serve or export a Fetch handler
+# or: npm install uflite  (on another Fetch-compatible runtime)
 ```
 
-The quickstarts use **Node 22+**. Fetch-compatible Bun, Deno and Workers can call `app.fetch`; see [runtime adapters](#user-content-runtime-adapters). Core `dependencies` is `{}`. Optional peer packages are installed **by your application** when needed:
+**No Hono, Node adapter or web server package is needed by uflite.** A Fetch runtime such as Bun, Cloudflare Workers or Deno supplies the HTTP host. The five local HTTP projects below run with Bun. Optional peer packages are installed **by your application** when used:
 
 | Import | Install in your application | Why |
 | :--- | :--- | :--- |
@@ -84,100 +83,105 @@ The quickstarts use **Node 22+**. Fetch-compatible Bun, Deno and Workers can cal
 <a id="quick-start-skeletons"></a>
 ## 🚀 Quick-start skeletons
 
-The snippets below are **complete single-file Node servers**. In a new folder: `npm install uflite @hono/node-server`, save one as `server.mjs`, run `node server.mjs`. Keep the import paths shown; do not import `json` from lite/nano.
-
-<a id="quick-start-full-node-server"></a>
-### 1 · Full Node server — one route and a real response
+**The Fetch handler is the app.** This is the exact nano/lite pattern for formatting plain handler values and catching errors; `json` and `error` are imported from full `uflite`:
 
 ```js
-// server.mjs · npm install uflite @hono/node-server
-import { serve } from '@hono/node-server'
-import { flite, json } from 'uflite'
-
-const app = flite()
-app.get('/hello/:name', req => json({ hello: req.params.name }))
-serve({ fetch: request => app.fetch(request), port: 3000 })
+export default {
+  fetch: (request, ...args) =>
+    router
+      .fetch(request, ...args)
+      .then(json)
+      .catch(error)
+}
 ```
 
-`node server.mjs` → `curl localhost:3000/hello/Ada` returns `{"hello":"Ada"}`; `GET /missing` returns the full entry's JSON 404. Pass a Request-only adapter wrapper when you use mode 1 to avoid confusing extra adapter arguments with `next`.
+On nano/lite, a miss resolves to `undefined`, so `json(undefined)` is also `undefined`: register a last `all('*', () => error(404, 'Not found'))` route or add your own fallback before returning from a real HTTP server. `.catch(error)` returns the **error message even for a 500**, so redact sensitive exceptions in production. Full already formats and handles errors, but can use the same wrapper when a uniform Fetch export is desired.
 
-### 2 · Nano — explicit API-key guard and JSON fallback
+### 1 · Worker-ready nano Fetch module
+
+Save as `index.js` after `bun add uflite` (or install `uflite` in your Worker project). This module itself uses no Bun or Hono APIs:
 
 ```js
-// server.mjs · npm install uflite @hono/node-server
-import { serve } from '@hono/node-server'
 import { flite } from 'uflite/nano'
-import { json } from 'uflite' // helper is exported by full, NOT nano
+import { json, error } from 'uflite'
 
-const app = flite()
-app.use('/tasks/*', req => {
-  if (req.headers.get('x-api-key') !== 'demo')
-    return json({ error: 'Unauthorized' }, { status: 401 })
-})
-app.get('/tasks', () => json([{ id: '1', title: 'Ship an API' }]))
-app.get('/tasks/:id', req => json({ id: req.params.id, tag: req.query.tag ?? null }))
-serve({
-  fetch: async req => (await app.fetch(req)) ?? json({ error: 'Not found' }, { status: 404 }),
-  port: 3000
+const router = flite()
+router.get('/hello/:name', req => ({ hello: req.params.name }))
+router.all('*', () => error(404, 'Not found'))
+
+export default {
+  fetch: (request, ...args) =>
+    router.fetch(request, ...args).then(json).catch(error)
+}
+```
+
+### 2 · Bun — serve that same module
+
+For **any** exported handler here, use a separate tiny `server.js` (Bun auto-serves a default `{ fetch }` from a CLI entrypoint, so do not call `Bun.serve` again *inside* `index.js`):
+
+```js
+import app from './index.js'
+
+Bun.serve({
+  port: Number(Bun.env.PORT || 3000),
+  fetch: request => app.fetch(request)
 })
 ```
 
-`curl -H 'x-api-key: demo' localhost:3000/tasks` → a JSON array; without the key → 401. Nano does **not** create fallback, formatting or error hooks: implement these explicitly. For the tiniest bundle, avoid importing the full `json` helper and return a native `Response` instead. See [complete CRUD example](examples/01-nano-crud/README.md).
+Run `bun server.js` and `curl localhost:3000/hello/Ada` → `{"hello":"Ada"}`; `GET /missing` → JSON 404. `index.js` can instead be exported directly as the module Worker handler without the Bun file.
 
-### 3 · Lite — global request hooks (not service hooks)
+### 3 · Lite — global before/after request hooks
+
+Replace the nano import and route configuration in `index.js` with this (use the same `server.js` for Bun):
 
 ```js
-// server.mjs · npm install uflite @hono/node-server
-import { serve } from '@hono/node-server'
 import { flite } from 'uflite/lite'
-import { json } from 'uflite' // helper is exported by full, NOT lite
+import { json, error } from 'uflite'
 
-const app = flite({
-  before: { all: [req => {
-    if (!req.headers.get('x-api-key')) return json({ error: 'Key required' }, { status: 401 })
-  }] },
-  after: { all: [(result, req) => {
-    if (result?.headers) result.headers.set('x-powered-by', 'uflite/lite')
-    return result
-  }] },
-  error: { all: [err => json({ error: 'Internal Server Error' }, { status: 500 })] }
+const router = flite({
+  before: { all: [req => { req.started = Date.now() }] },
+  after: { all: [(response, req) => {
+    response?.headers?.set('x-time-ms', String(Date.now() - req.started))
+    return response
+  }] }
 })
-app.get('/notes', () => json([{ id: '1', text: 'Hello' }]))
-serve({ fetch: async req => (await app.fetch(req)) ?? json({ error: 'Not found' }, { status: 404 }), port: 3000 })
+router.get('/notes', () => json([{ id: '1', text: 'Hello' }]))
+router.all('*', () => error(404, 'Not found'))
+
+export default {
+  fetch: (request, ...args) =>
+    router.fetch(request, ...args).then(json).catch(error)
+}
 ```
 
-`curl -i -H 'x-api-key: demo' localhost:3000/notes` → 200 with `x-powered-by`; no key → 401. Lite has **request hooks**, not `app.service` or service hooks. See [standalone notes example](examples/03-lite-notes/README.md).
+`curl -i localhost:3000/notes` → JSON plus `x-time-ms`. Lite has **global request hooks**, not a service registry. Use [example 03](examples/03-lite-notes/README.md) for CRUD, error hooks, and a separate notes module.
 
-### 4 · Full — real DBService and service hook
+### 4 · Full — in-memory DBService (optional `umosql`)
+
+After `bun add uflite umosql@0.3.1`, save this as `index.js` and use the same Bun `server.js`. The service automatically creates REST routes; no second CRUD implementation is needed:
 
 ```js
-// server.mjs · npm install uflite umosql@0.3.1 @hono/node-server
-import { serve } from '@hono/node-server'
-import { flite, json, status } from 'uflite'
+import { flite, json, error, status } from 'uflite'
 import { createDBService } from 'uflite/services/db'
 
-const app = flite({
-  // The auto-created service REST routes already return Responses.
-  format: false,
-  error: { all: [err => json({
-    error: (err.status || 500) >= 500 ? 'Internal Server Error' : err.message
-  }, { status: err.status || 500 })] }
-})
-const tasks = app.service('tasks', createDBService()) // isolated in-memory collection
-// Local demonstration only: add authentication/authorization before exposing these routes!
+const router = flite()
+const tasks = router.service('tasks', createDBService())
 tasks.hooks({ before: { create: [ctx => {
   if (!ctx.data?.title) throw new status(400, 'title is required')
 }] } })
-tasks.on('created', task => console.log('created', task._id))
-serve({ fetch: request => app.fetch(request), port: 3000 })
+// Local learning only: authenticate these generated routes before exposing real data.
+export default {
+  fetch: (request, ...args) =>
+    router.fetch(request, ...args).then(json).catch(error)
+}
 ```
 
-`curl -i -X POST localhost:3000/tasks -H 'content-type: application/json' -d '{"title":"Ship it"}'` creates a record; `curl localhost:3000/tasks` lists it. For **real sessions, ACL and storage**, copy [example 04](examples/04-full-services/README.md), which is HTTP-tested with Better Auth signup and authenticated CRUD.
+`curl -X POST localhost:3000/tasks -H 'content-type: application/json' -d '{"title":"Ship it"}'` creates a record; `curl localhost:3000/tasks` lists it. For **real Better Auth sessions, ACL and storage**, use [example 04](examples/04-full-services/README.md); it is tested end-to-end with Bun and never installs an HTTP adapter.
 
 <a id="five-runnable-examples"></a>
 ## 🧪 Five runnable examples
 
-In a checkout, first run **`bun install && bun run build`** at the root. Each project has its own `package.json`, uses `file:../..` for the built checkout, and has documented `curl` success/error flows. They default to port 3000 (`PORT` overrides it).
+In a checkout, first run **`bun install && bun run build`** at the root. Each project has its own `package.json`, uses `file:../..` for the built checkout, and has documented `curl` success/error flows. Each exports a Fetch handler from `index.js`; its tiny `server.js` calls `Bun.serve` on port 3000 (`PORT` overrides it). **None installs Hono or a Node adapter.**
 
 | Project | Learn by doing | Run from repository root |
 | :--- | :--- | :--- |
@@ -228,6 +232,131 @@ app.get('/private',
 
 Only implemented standard service methods auto-register REST routes (`GET /name`, `GET /name/:id`, `POST /name`, `PUT /name/:id`, `PATCH /name/:id`, `DELETE /name/:id`); custom methods are direct-call only unless you write a route. **Protect generated routes** before registration if data is sensitive. See [example 05](examples/05-full-middleware-resolvers/index.js) for a complete lifecycle.
 
+<a id="practical-patterns"></a>
+## 🧰 Practical patterns
+
+These restore the original README's **mounted routers, middleware, service lifecycle, custom matcher and storage recipes**, with imports corrected to the real exports. They are independent patterns, not mandatory layers.
+
+### Response helpers · no `Response.json` needed
+
+```js
+import { flite, json, text, html, error, status } from 'uflite'
+const app = flite()
+app.get('/json', () => json({ ok: true }, { status: 201 }))
+app.get('/text', () => text('Hello'))
+app.get('/html', () => html('<strong>Hello</strong>'))
+app.get('/missing', () => error(404, 'Not found'))
+app.get('/private', () => { throw new status(401, 'Sign in first') })
+```
+
+Full uflite also converts plain objects to JSON and supplies its own unmatched-route 404. Nano and lite need the explicit `.then(json).catch(error)` wrapper above when handlers return plain values. Returning a `Response` from `json` is safe to pass through `json` again; a 5xx `error` response can reveal its original message.
+
+### Global request hooks · before / after / error
+
+```js
+import { flite } from 'uflite/lite'
+import { json, error } from 'uflite'
+const router = flite({
+  before: { all: [req => { req.startedAt = Date.now() }] },
+  after: { all: [(response, req) => {
+    response?.headers.set('x-duration-ms', String(Date.now() - req.startedAt))
+    return response
+  }] },
+  error: { all: [err => error(err.status || 500, err.message)] }
+})
+router.get('/health', () => json({ ok: true }))
+```
+
+Request hooks receive a Request or Response, **not** a service context. A custom error hook replaces the default in full; this sample preserves error messages to demonstrate the API, not as production redaction policy. The [lite notes app](examples/03-lite-notes/index.js) shows CRUD and 4xx/5xx handling.
+
+### Nested routers · versioned APIs
+
+```js
+import { flite } from 'uflite/nano'
+import { json, error } from 'uflite'
+const v1 = flite().get('/users', () => [{ id: 1 }])
+const v2 = flite().get('/users', () => [{ id: 1, name: 'Ada' }])
+const router = flite()
+router.use('/api/v1', v1).use('/api/v2', v2)
+router.all('*', () => error(404, 'Not found'))
+export default { fetch: (request, ...args) => router.fetch(request, ...args).then(json).catch(error) }
+// /api/v1/users and /api/v2/users; tested mounting also in example 02
+```
+
+### Middleware templates · mode 1 and paired phases
+
+```js
+import { flite, json } from 'uflite'
+import { cors, corsAfter, requestId, requestIdAfter } from 'uflite/middlewares'
+const router = flite({ mode: 1,
+  before: { all: [cors({ origin: 'https://app.example' }), requestId()] },
+  after: { all: [corsAfter, requestIdAfter] }
+})
+router.get('/health', () => json({ ok: true }))
+// Supply a verified auth identity and your own CORS policy before exposing real data.
+```
+
+For your own mode-1 middleware: `(req, next) => { /* before */ await next(); /* after */ }`. For cross-phase data in separate before/after hooks, store metadata in a `WeakMap` keyed by the Request rather than trusting client headers. HTTP middleware is **not** the same as service hooks. See [middleware option signatures](#user-content-complete-api-signatures).
+
+### Service hooks, events and custom methods
+
+```js
+import { flite, json, status } from 'uflite'
+const app = flite()
+const rows = []
+const users = app.service('users', {
+  async find() { return rows },
+  async create(data) { const user = { id: String(rows.length + 1), ...data }; rows.push(user); return user },
+  async count() { return rows.length } // direct-call only; no generated /users/count
+})
+app.hooks({ before: { all: [ctx => console.log(ctx.method, ctx.path)] } })
+users.hooks({
+  before: { create: [ctx => { if (!ctx.data?.name) throw new status(400, 'name required') }] },
+  after: { create: [ctx => { ctx.result.label = ctx.result.name.toUpperCase() }] }
+})
+users.on('created', user => console.log('created', user.id))
+app.get('/user-count', async () => json({ count: await users.count() }))
+```
+
+`POST /users` calls the standard `create`; `users.count()` is hookable but not auto-routed, so `/user-count` is explicit. Before-hooks, implementation, after-hooks, then the `created` event run in that order; generated service HTTP routes need access control. [Example 05](examples/05-full-middleware-resolvers/index.js) combines this with resolvers and predicates.
+
+### Database, schema and auth adapters
+
+```js
+import { createDBService } from 'uflite/services/db'      // bun add umosql@0.3.1
+import { createTableService } from 'uflite/services/table' // supply a real DDL-capable adapter
+import { createAuth } from 'uflite/services/auth'         // bun add better-auth umosql@0.3.1
+import { createACL } from 'uflite/services/acl'           // bun add uqry
+import { createSchemalessAdapter } from 'umosql/schemaless'
+
+const tasks = createDBService() // isolated memory; not persistent
+// app.service('tasks', createDBService(() => database.collection('tasks'))) // supply your database
+// const tables = createTableService(dbAdapter) // requires listCollections/getTableSchema/createTableWithSchema/dropCollection
+const { adapter } = createSchemalessAdapter(undefined, 'memory')
+const auth = await createAuth({ adapter, baseURL: 'http://localhost:3000', secret: Bun.env.AUTH_SECRET })
+const acl = createACL({ enabled: true, rules: [{ id: 'members', permissions: ['member:tasks:find'] }] })
+// Mount auth.handler(request) at /api/auth/*; use auth.api.getSession({headers:req.headers})
+// and a trusted role before calling acl.can({user:session.user}, 'member:tasks:find').
+```
+
+The snippet above is **wiring**, not a standalone server: `tasks`, `auth` and `acl` need protected routes. Set a real secret; the [runnable full example](examples/04-full-services/index.js) includes the session guard, ACL hook and HTTP verification. UMOSQL memory resets on restart. DBService REST passes flat query params while its direct `find({query:{$limit,$skip}})` expects nested `query`; missing-record errors set `code:404`, not HTTP `status`.
+
+### Local storage and optional S3
+
+```js
+import { createLocalStorageService } from 'uflite/services/localStorage' // no AWS SDK
+const local = createLocalStorageService({ basePath: './uploads', maxFileSize: 1024 * 1024 })
+// app.service('storage', local) // protect raw upload/download routes first
+
+// S3-compatible provider (install both @aws-sdk/client-s3 and @aws-sdk/s3-request-presigner):
+import { createStorageService } from 'uflite/services/storage'
+const s3 = createStorageService({ type: 's3', bucket: 'uploads', region: 'us-east-1',
+  endpoint: 'http://localhost:9000', // omit for AWS S3
+  accessKeyId: Bun.env.S3_ACCESS_KEY_ID, secretAccessKey: Bun.env.S3_SECRET_ACCESS_KEY })
+```
+
+Local storage's raw routes include `PUT /storage?key=folder/file.txt` and `GET /storage/download?key=folder/file.txt`. S3: `POST /storage/presign` with `{key,contentType}` returns a signed PUT URL and headers; `POST /storage/presign-download` with `{key}` signs a GET. Configure bucket CORS. Signed PUT does not enforce file size; local presign URLs are **not** authorization tokens. Restrict both HTTP and direct service access. [Example 04](examples/04-full-services/README.md) runs local storage by default.
+
 <a id="complete-api-signatures"></a>
 ## 📖 Complete API signatures
 
@@ -270,7 +399,7 @@ run(mode?: 0 | 1)(...handlers)(...args) → Promise<result | undefined>  // full
 
 ### HTTP middleware · `uflite/middlewares`
 
-Request factories return `Middleware(request, next?) → Response | void | Promise<…>`; named companions are response-phase functions `(response, request, next?) → Response | Promise<Response>` for `after.all`. In mode 0 with a Node adapter that supplies extra fetch args, wrap optional-next middleware as `req => middleware(req)` (see [example 05](examples/05-full-middleware-resolvers/index.js)).
+Request factories return `Middleware(request, next?) → Response | void | Promise<…>`; named companions are response-phase functions `(response, request, next?) → Response | Promise<Response>` for `after.all`. In mode 0, wrap optional-next middleware as `req => middleware(req)` if a Fetch host supplies extra arguments; otherwise it may mistake an environment/server value for `next` (see [example 05](examples/05-full-middleware-resolvers/index.js)).
 
 | Factory signature | Main options | After companion |
 | :--- | :--- | :--- |
@@ -488,28 +617,120 @@ app.channel('updates').filter(meta => meta.room === 'demo').send('created', { id
 app.channel('updates').leave(socket)
 ```
 
-<a id="runtime-adapters"></a>
-## 🌐 Runtime adapters
+<a id="custom-matchers"></a>
+## 🔌 Custom matchers (optional)
 
-uflite speaks Web `Request`/`Response`; the server/transport is yours. **Node is HTTP-tested here.** Other wiring is illustrative, not a deployment certification:
-
-| Runtime | Minimal wiring after registering `app.get('/', () => json({ok:true}))` |
-| :--- | :--- |
-| Node 22+ (`@hono/node-server`) | `serve({fetch: request => app.fetch(request),port:3000})` |
-| Bun | `Bun.serve({port:3000,fetch: request => app.fetch(request)})` |
-| Deno | `Deno.serve(request => app.fetch(request))` (import `uflite` via `npm:uflite`) |
-| Cloudflare Workers | `export default {fetch: request => app.fetch(request)}` |
-| Hono (`hono` installed separately) | `hono.all('*', c => app.fetch(c.req.raw))` |
+`flite({ match: ({method,path}) => ({handlers,params?}) })` lets you use another matcher without replacing uflite's hook runner. **No external router is necessary**; the built-in matcher is the default. As in the original README, Hono's PatternRouter is one optional example (install `hono` yourself):
 
 ```js
-// Workers/Bun/Node: for other runtimes change only the import/server line above
-import { flite, json } from 'uflite'
-const app = flite()
-app.get('/', () => json({ ok: true }))
-export default { fetch: request => app.fetch(request) } // Workers entry point
+import { PatternRouter } from 'hono/router/pattern-router'
+import { flite } from 'uflite/lite'
+import { json, error } from 'uflite'
+const external = new PatternRouter()
+external.add('GET', '/users/:id', req => ({ id: req.params.id }))
+const router = flite({ match: ({ method, path }) => {
+  const [matches, stash = []] = external.match(method, path)
+  if (!matches.length) return null
+  return { handlers: matches.map(([handler, params = {}]) => req => {
+    req.params = Object.fromEntries(Object.entries(params).map(([key, value]) =>
+      [key, typeof value === 'number' ? stash[value] : value]))
+    return handler(req)
+  }) }
+} })
+export default { fetch: (request, ...args) => router.fetch(request, ...args)
+  .then(value => value ?? error(404, 'Not found')).then(json).catch(error) }
 ```
 
-No Express/Fastify/WebSocket adapter is exported. If an adapter passes extra args to `app.fetch`, mode 1's `next` is **last**, not necessarily second. Some adapters/auth packages produce `Response` objects from another implementation; full's default `instanceof Response` formatter can serialize them as `{}`. Use `flite({format:false})` **only when your routes already return Responses**, as in [example 04](examples/04-full-services/index.js), and verify the adapter you deploy.
+This normalization is verified for Hono 4's PatternRouter, RegExpRouter and TrieRouter in [matcher tests](tests/hono-router.spec.js); their internal match shapes may change with Hono versions. `trouter`/`itty-router` can also be adapted to the same `{handlers,params?}` contract. The `match` option does **not** make Hono a dependency.
+
+<a id="browser-routing"></a>
+## 🖥️ Browser SPA and React routing
+
+The original README showed client-side routing; it is **not** server-side rendering or a Fetch HTTP server. Use a bundler (Vite, Bun build, etc.) or an import map to resolve bare `uflite/...` imports in the browser. These are small `main.js` examples, not untested copy-paste raw `<script>` imports.
+
+**Vanilla browser SPA:** nano can return data rather than a Response. Render untrusted route params with `textContent`, not `innerHTML`.
+
+```js
+// main.js, bundled for a page containing <div id="root"></div>
+import { flite } from 'uflite/nano'
+const router = flite()
+router.get('/', () => ({ title: 'Home' }))
+router.get('/user/:id', req => ({ title: 'User ' + req.params.id }))
+const root = document.querySelector('#root')
+async function render() {
+  const view = await router.fetch(new Request(location.href))
+  const heading = document.createElement('h1')
+  heading.textContent = view?.title ?? 'Not found'
+  const link = document.createElement('a')
+  link.href = location.pathname === '/' ? '/user/42' : '/'
+  link.textContent = location.pathname === '/' ? 'Go to user' : 'Home'
+  root.replaceChildren(heading, link)
+}
+document.addEventListener('click', event => {
+  const a = event.target.closest('a')
+  if (!a || a.origin !== location.origin || event.defaultPrevented || event.button !== 0 ||
+      event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+  event.preventDefault()
+  history.pushState(null, '', a.href)
+  render()
+})
+window.addEventListener('popstate', render)
+render()
+```
+
+**React SPA:** install `react` and `react-dom` in *your app* (`npm install uflite react react-dom`) and bundle `main.jsx`. Create the React root **once**, not on every navigation.
+
+```jsx
+import React from 'react'
+import { createRoot } from 'react-dom/client'
+import { flite } from 'uflite/nano'
+const router = flite()
+router.get('/', () => ({ title: 'Home', next: '/user/42' }))
+router.get('/user/:id', req => ({ title: `User ${req.params.id}`, next: '/' }))
+const root = createRoot(document.getElementById('root'))
+const go = path => { history.pushState(null, '', path); render() }
+async function render() {
+  const view = await router.fetch(new Request(location.href))
+  root.render(<main><h1>{view?.title ?? 'Not found'}</h1>
+    <a href={view?.next ?? '/'} onClick={event => {
+      event.preventDefault(); go(event.currentTarget.getAttribute('href'))
+    }}>Navigate</a></main>)
+}
+window.addEventListener('popstate', render)
+render()
+```
+
+Browser examples are illustrative, not part of the HTTP smoke test. Existing repository samples: [vanilla](examples/browser-spa.js), [React](examples/browser-react.js), [service worker](examples/service-worker.js), and [middleware](examples/example.middleware.js).
+
+<a id="runtime-adapters"></a>
+## 🌐 Fetch runtimes & optional integrations
+
+The exported Fetch handler **is enough** for Workers; Bun and Deno can call it directly. Only the Bun projects are HTTP-smoke-tested in this repository. No HTTP adapter belongs to the core package:
+
+| Runtime | Minimal integration | Additional package |
+| :--- | :--- | :--- |
+| Cloudflare Workers | `export default { fetch: (request, ...args) => router.fetch(request, ...args).then(json).catch(error) }` | None (bundle your code) |
+| Bun | `Bun.serve({fetch: request => handler.fetch(request),port:3000})` | None |
+| Deno | `Deno.serve(request => handler.fetch(request))` (import from `npm:uflite`) | None |
+| Hono composition | `hono.all('*', c => handler.fetch(c.req.raw))` | `hono` in **your** app |
+| Node | Provide a Fetch-compatible server/adapter of your choice | Adapter in **your** app only |
+
+**Hono is an optional combination**, not the uflite server and not part of any quickstart. If your app *already uses Hono*, you can forward its raw Request:
+
+```js
+// Only for apps that choose Hono (npm install hono).
+import { Hono } from 'hono'
+import { flite, json, error } from 'uflite'
+const router = flite()
+router.get('/hello', () => ({ hello: 'uflite' }))
+const handler = { fetch: (request, ...args) =>
+  router.fetch(request, ...args).then(json).catch(error) }
+const hono = new Hono()
+hono.all('*', c => handler.fetch(c.req.raw))
+export default hono
+```
+
+Hono on Node may itself use `@hono/node-server`, but that is **Hono/Node application wiring**, never a uflite requirement. For mode 1, be careful when a host passes extra `fetch` arguments: `next` is last. The full formatter uses `instanceof Response`; with a foreign Response implementation it can serialize a Response to `{}`. Only use `flite({format:false})` when routes already return Responses, and test the host you deploy.
 
 <a id="testing-security-and-license"></a>
 ## 🛡️ Testing, security & license
@@ -520,8 +741,21 @@ bun run build          # dist is required before package/example checks
 bun test               # unit/integration tests
 bun run test:types     # public NodeNext declarations + middleware
 bun run test:package   # packed ESM, CommonJS, TypeScript consumers
-bun run test:examples  # installs/starts five Node projects; tests success and error HTTP flows
+bun run test:examples  # installs/starts five Bun projects; tests success and error HTTP flows
 bun run bench:size     # reproduce the size table for this toolchain
+```
+
+A tiny `bun:test` example, using the Fetch handler without starting a server:
+
+```js
+import { test, expect } from 'bun:test'
+import { flite, json } from 'uflite'
+test('GET /users/:id', async () => {
+  const router = flite().get('/users/:id', req => json({ id: req.params.id }))
+  const response = await router.fetch(new Request('https://example.test/users/42'))
+  expect(response.status).toBe(200)
+  expect(await response.json()).toEqual({ id: '42' })
+})
 ```
 
 > [!WARNING]
@@ -533,3 +767,4 @@ bun run bench:size     # reproduce the size table for this toolchain
 - **Runtime gaps:** persistent DB, S3 provider, Workers, Deno and browser UI were not deployed in these tests. See the [production follow-up](PRODUCTION_READINESS_REVIEW.md).
 - **Contributing:** add regression tests for behavior changes, run the commands above and review optional-integration imports. File defects in [GitHub issues](https://github.com/kethan/uflite/issues).
 - **License:** `package.json` declares **ISC**. A matching top-level license file still needs maintainer confirmation; third-party license texts are under [`licenses/`](licenses/).
+- **Acknowledgments:** inspired by [itty-router](https://github.com/kwhitley/itty-router) (routing), [Hono](https://hono.dev) (middleware ideas) and [FeathersJS](https://feathersjs.com) (services). Inspiration is not a runtime dependency.
