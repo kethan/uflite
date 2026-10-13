@@ -1357,7 +1357,7 @@ describe('Router - Error Handling', () => {
 
     expect(res.status).toBe(500);
     const data = await res.json();
-    expect(data.error).toBe('Uncaught');
+    expect(data.error).toBe('Internal Server Error');
   });
 
   test('should handle errors in after hooks', async () => {

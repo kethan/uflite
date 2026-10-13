@@ -7,7 +7,7 @@ export type IRequest = Request & {
 
 export type RouteHandler<Req = IRequest> =
     | ((req: Req, ...args: any[]) => Response | any | Promise<Response | any>)
-    | ((req: Req, ...args: any[], next: (err?: any) => Promise<void>) => Response | any | Promise<Response | any>);
+    | ((req: Req, ...args: [...additional: any[], next: (err?: any) => Promise<void>]) => Response | any | Promise<Response | any>);
 
 export interface FliteConfig<Req = IRequest> {
     routes?: any[];

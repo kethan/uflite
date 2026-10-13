@@ -1,6 +1,17 @@
 export const lead = x => x[0] == '/' ? x : '/' + x;
 export const mount = f => f?.fetch || f;
-export const compile = p => RegExp(`^${p.replace(/\/+(\/|$)/g, '$1').replace(/:(\w+)/g, '(?<$1>[^/]+)').replace(/(\/?)\*/g, '($1.*)?')}/*$`);
+export const compile = p => {
+    const path = p.replace(/\/+(\/|$)/g, '$1');
+    const escape = part => part.replace(/[\\^$+?.()|[\]{}]/g, '\\$&');
+    const token = /:(\w+)(\?)?|(\/?)\*/g;
+    let result = '', start = 0, match;
+    while ((match = token.exec(path))) {
+        result += escape(path.slice(start, match.index));
+        result += match[1] ? `(?<${match[1]}>[^/]+)${match[2] || ''}` : `(${match[3]}.*)?`;
+        start = token.lastIndex;
+    }
+    return RegExp(`^${result + escape(path.slice(start))}/*$`);
+};
 export const norm = n => n.startsWith('/') ? n.slice(1) : n;
 
 export const run = (mode = 0, next, loop, i = 0, result) =>

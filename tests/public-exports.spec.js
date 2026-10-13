@@ -36,6 +36,19 @@ test('public hook, utility, resolver, and service subpaths resolve', async () =>
   expect(typeof utils.isObject).toBe('function');
 });
 
+test('individual service subpaths resolve without importing the barrel', async () => {
+  const [db, table, storage, local] = await Promise.all([
+    import('uflite/services/db'),
+    import('uflite/services/table'),
+    import('uflite/services/storage'),
+    import('uflite/services/localStorage')
+  ]);
+  expect(typeof db.createDBService).toBe('function');
+  expect(typeof table.createTableService).toBe('function');
+  expect(typeof storage.createStorageService).toBe('function');
+  expect(typeof local.createLocalStorageService).toBe('function');
+});
+
 test('optional auth and ACL service entries resolve separately', async () => {
   const [auth, acl] = await Promise.all([import('uflite/services/auth'), import('uflite/services/acl')]);
   expect(typeof auth.createAuth).toBe('function');

@@ -9,8 +9,9 @@ const inputError = message => Object.assign(new TypeError(message), { status: 40
 
 const runtime = () => Promise.all([
   import('node:fs/promises'),
-  import('node:path')
-]).then(([fs, path]) => ({ fs, path }))
+  import('node:path'),
+  import('node:fs')
+]).then(([fs, path, { constants }]) => ({ fs, path, constants }))
 
 const requireKey = key => {
   if (typeof key !== 'string' || !key || key.includes('\\') || key.includes('\0') || key.startsWith('/')) {
@@ -59,18 +60,17 @@ export const createLocalStorageService = ({
   const contentTypes = new Map()
   const pathFor = async key => {
     key = requireKey(key)
-    const { fs, path } = await runtime()
+    const { fs, path, constants } = await runtime()
     const root = path.resolve(basePath)
     await fs.mkdir(root, { recursive: true })
-    const realRoot = root
-    let parent = realRoot
+    let parent = root
 
     for (const segment of key.split('/').slice(0, -1)) {
       parent = path.join(parent, segment)
       try {
-        const stat = await fs.stat(parent)
+        const stat = await fs.lstat(parent)
         if (!stat.isDirectory()) {
-          throw new TypeError('key resolves through a non-directory path')
+          throw inputError('key resolves through a non-directory path')
         }
       } catch (error) {
         if (error.code !== 'ENOENT') throw error
@@ -80,14 +80,14 @@ export const createLocalStorageService = ({
 
     const filePath = path.join(parent, key.split('/').at(-1))
     try {
-      const stat = await fs.stat(filePath)
+      const stat = await fs.lstat(filePath)
       if (!stat.isFile()) {
-        throw new TypeError('key must refer to a regular file')
+        throw inputError('key must refer to a regular file')
       }
     } catch (error) {
       if (error.code !== 'ENOENT') throw error
     }
-    return { fs, filePath }
+    return { fs, filePath, constants }
   }
 
   const getUrl = (path, key, params) => {
@@ -105,7 +105,7 @@ export const createLocalStorageService = ({
     const { fs, filePath } = await pathFor(key)
     let stat
     try {
-      stat = await fs.stat(filePath)
+      stat = await fs.lstat(filePath)
     } catch (error) {
       if (error.code === 'ENOENT') throw notFound(key)
       throw error
@@ -131,18 +131,29 @@ export const createLocalStorageService = ({
     if (typeof contentType !== 'string' || !contentType.trim() || /[\r\n]/.test(contentType)) {
       throw inputError('contentType must be a valid non-empty header value')
     }
-    const { fs, filePath } = await pathFor(key)
-    await fs.writeFile(filePath, body)
+    const { fs, filePath, constants } = await pathFor(key)
+    // O_NOFOLLOW also protects against a final-component symlink swapped in after pathFor.
+    const handle = await fs.open(filePath, constants.O_WRONLY | constants.O_CREAT | constants.O_TRUNC | (constants.O_NOFOLLOW || 0), 0o600)
+    try {
+      await handle.writeFile(body)
+    } finally {
+      await handle.close()
+    }
     contentTypes.set(key, contentType)
     return { key, size: body.byteLength, contentType, url: getUrl('/storage/download', key, params) }
   }
 
   const download = async keyOrInput => {
     const key = requireKey(typeof keyOrInput === 'string' ? keyOrInput : keyOrInput?.key)
-    const { fs, filePath } = await pathFor(key)
+    const { fs, filePath, constants } = await pathFor(key)
     let body
     try {
-      body = await fs.readFile(filePath)
+      const handle = await fs.open(filePath, constants.O_RDONLY | (constants.O_NOFOLLOW || 0))
+      try {
+        body = await handle.readFile()
+      } finally {
+        await handle.close()
+      }
     } catch (error) {
       if (error.code === 'ENOENT') throw notFound(key)
       throw error

@@ -1,4 +1,4 @@
-export type Middleware = (request: Request, next?: () => Promise<unknown>) => unknown | Promise<unknown>;
+export type Middleware = (request: Request, next?: () => Promise<Response | undefined>) => Response | void | Promise<Response | void>;
 export type AfterMiddleware = (response: Response, request: Request, next?: () => Promise<unknown>) => Response | Promise<Response>;
 
 export interface CorsOptions {

@@ -26,7 +26,10 @@ export const flite = ({
             ]
         },
         error: errorHooks || {
-            all: [(err) => error(err.status || 500, err.message)]
+            all: [(err) => {
+                const status = Number.isInteger(err?.status) && err.status >= 400 && err.status <= 599 ? err.status : 500;
+                return error(status, status < 500 ? err.message : 'Internal Server Error');
+            }]
         }
     }))));
 export default flite;

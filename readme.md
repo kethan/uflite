@@ -1,5 +1,3 @@
-# 📁 README.md
-
 # 🪶 μflite
 
 **A small Fetch router with hooks and services.** Choose `nano` for the smallest router, `lite` for indexed routing and lifecycle hooks, or the full entry point for response formatting and services.
@@ -31,6 +29,20 @@ npm install uflite
 bun add uflite
 ```
 
+The core router has **no runtime dependencies**. Integrations are opt-in: install the packages used by the service entry you import in your application (they are listed as optional peers, not installed automatically):
+
+| Entry point | Install separately |
+| --- | --- |
+| `uflite/services/db` | `npm install umosql` |
+| `uflite/services/table` or `uflite/services/localStorage` | No extra package |
+| `uflite/services/storage` (local or S3) | `npm install @aws-sdk/client-s3 @aws-sdk/s3-request-presigner` |
+| `uflite/services` (barrel: DB + table + storage) | `npm install umosql @aws-sdk/client-s3 @aws-sdk/s3-request-presigner` |
+| `uflite/services/acl` | `npm install uqry` |
+| `uflite/services/auth` | `npm install better-auth` (and a compatible DB adapter such as `umosql` if needed) |
+| `uflite`, `uflite/lite`, `uflite/nano`, `uflite/middlewares` | Nothing else required |
+
+The `uflite/services` barrel eagerly loads its DB and S3 modules, including when you only plan to use local storage. Use individual service subpaths to install only the integration you need; for local-only storage, import `createLocalStorageService` from `uflite/services/localStorage`. Missing optional peers cause module-import errors; do not install them for core-only use.
+
 ---
 
 ## 🚀 Quick Start
@@ -38,13 +50,13 @@ bun add uflite
 ### Basic Routing
 
 ```javascript
-import { flite, json } from "uflite/lite";
+import { flite } from "uflite/lite";
 
 const app = flite();
 
-app.get("/hello", () => json({ message: "Hello World!" }));
+app.get("/hello", () => Response.json({ message: "Hello World!" }));
 
-app.get("/users/:id", (req) => json({ id: req.params.id }));
+app.get("/users/:id", (req) => Response.json({ id: req.params.id }));
 
 export default app;
 ```
@@ -52,7 +64,7 @@ export default app;
 ### Hono-Style Middleware (Mode 1)
 
 ```javascript
-import { flite, json } from "uflite/lite";
+import { flite } from "uflite/lite";
 
 const app = flite({ mode: 1 });
 
@@ -61,7 +73,7 @@ app.use(
 	async (req, next) => {
 		console.log("→ auth");
 		if (!req.headers.get("authorization")) {
-			return json({ error: "Unauthorized" }, { status: 401 });
+			return Response.json({ error: "Unauthorized" }, { status: 401 });
 		}
 		await next();
 		console.log("← auth");
@@ -74,7 +86,7 @@ app.use(
 	}
 );
 
-app.get("/protected", () => json({ secret: "data" }));
+app.get("/protected", () => Response.json({ secret: "data" }));
 
 // Output:
 // → auth
@@ -156,7 +168,7 @@ app.get(
 ## 🪝 Global Hooks
 
 ```javascript
-import { flite, json } from "uflite/lite";
+import { flite } from "uflite/lite";
 
 const app = flite({
 	mode: 1,
@@ -172,7 +184,7 @@ const app = flite({
 				// Runs only for POST requests
 				const body = await req.json();
 				if (!body.email) {
-					return json({ error: "Email required" }, { status: 400 });
+					return Response.json({ error: "Email required" }, { status: 400 });
 				}
 				await next();
 			},
@@ -192,7 +204,7 @@ const app = flite({
 		all: [
 			(err, req) => {
 				console.error(err);
-				return json(
+				return Response.json(
 					{
 						error: err.message,
 					},
@@ -207,7 +219,7 @@ const app = flite({
 
 app.post("/users", async (req) => {
 	const user = await createUser(await req.json());
-	return json(user, { status: 201 });
+	return Response.json(user, { status: 201 });
 });
 ```
 
@@ -419,15 +431,15 @@ await users.sendPasswordReset("user@example.com");
 ## 🔄 Nested Routers
 
 ```javascript
-import { flite, json } from "uflite/lite";
+import { flite } from "uflite/lite";
 
 // API v1
 const v1 = flite();
-v1.get("/users", () => json([{ id: 1 }]));
+v1.get("/users", () => Response.json([{ id: 1 }]));
 
 // API v2
 const v2 = flite();
-v2.get("/users", () => json([{ id: 1, name: "Alice" }]));
+v2.get("/users", () => Response.json([{ id: 1, name: "Alice" }]));
 
 // Main app
 const app = flite();
@@ -585,12 +597,12 @@ const app = flite({ match: ({ method, path }) => {
 
 ```javascript
 import { expect, test } from "bun:test";
-import { flite, json } from "uflite/lite";
+import { flite } from "uflite/lite";
 
 test("GET /users/:id", async () => {
 	const app = flite();
 
-	app.get("/users/:id", (req) => json({ id: req.params.id }));
+	app.get("/users/:id", (req) => Response.json({ id: req.params.id }));
 
 	const res = await app.fetch(new Request("http://localhost/users/123"));
 
@@ -604,17 +616,17 @@ test("GET /users/:id", async () => {
 
 The package has three entry points so an application can choose the smallest feature set it needs: `uflite/nano` for routing, `uflite/lite` for indexed routing and lifecycle hooks, and `uflite` for response formatting, error handling, services, events, and channels. Import only the entry point and helpers used by the app; service adapters and middleware are separate subpaths.
 
-`bun run bench:size` bundles one minimal `GET /hello` route returning a `Response` for every package with the same Bun browser target, minifier, and gzip setting. Measured with Bun 1.4.1, Hono 4.10.6, and itty-router 4.2.2:
+`bun run bench:size` bundles one minimal `GET /hello` route returning a `Response` for every package with the same Bun browser target, minifier, and gzip setting. Measured with Bun 1.4.3, Hono 4.10.6, and itty-router 4.2.2:
 
 | Entry | Minified | Gzip |
 | --- | ---: | ---: |
-| uflite/nano | 1,377 B | 795 B |
-| uflite/lite | 2,457 B | 1,238 B |
-| uflite | 6,121 B | 2,679 B |
+| uflite/nano | 1,537 B | 899 B |
+| uflite/lite | 2,630 B | 1,355 B |
+| uflite | 6,398 B | 2,854 B |
 | Hono | 19,026 B | 7,623 B |
 | itty-router | 1,122 B | 689 B |
 
-In this fixture, lite and full uflite are smaller than Hono, while nano is 106 B larger gzip than itty-router. Keep the `nano` entry focused on the smallest route use case; if beating itty-router is a release requirement, this measurement identifies a remaining optimization target. Re-run `bun run bench:size` after changing routing code or dependencies. Runtime throughput is measured separately with `bun run bench`, `bun run bench:cmp`, `bun run bench:mitata`, and `bun run bench:url`.
+In this fixture, lite and full uflite are smaller than Hono, while nano is 210 B larger gzip than itty-router. Keep the `nano` entry focused on the smallest route use case; if beating itty-router is a release requirement, this measurement identifies a remaining optimization target. Re-run `bun run bench:size` after changing routing code or dependencies. Runtime throughput is measured separately with `bun run bench`, `bun run bench:cmp`, `bun run bench:mitata`, and `bun run bench:url`.
 
 ---
 
@@ -697,7 +709,7 @@ app.get('/health', () => new Response('ok'))
 | `secureHeaders` | CSP, frame, HSTS, content-type, and referrer policy settings | `secureHeadersAfter` |
 | `requestId` | header name and optional `generator()` | `requestIdAfter` |
 
-The built-in rate limiter stores counters in process memory, so use a shared store for multi-instance deployments.
+The built-in rate limiter stores counters in process memory, so use a shared store for multi-instance deployments. Without `keyGenerator` all requests share an `unknown` bucket (fail-closed rather than trusting spoofable forwarding headers). For per-client limits, supply `keyGenerator` using an authenticated user or a client IP set by a trusted proxy that overwrites incoming forwarding headers. `bodyLimit` checks the actual body bytes using a cloned request (and can buffer up to the configured limit); configure an upstream transport/body cap too.
 
 ### Services
 
@@ -705,7 +717,7 @@ The built-in rate limiter stores counters in process memory, so use a shared sto
 
 ```js
 import { flite } from 'uflite'
-import { createDBService } from 'uflite/services'
+import { createDBService } from 'uflite/services/db'
 
 const app = flite()
 const records = createDBService(undefined, { paginate: { default: 20, max: 100 } })
@@ -719,7 +731,7 @@ app.service('records', records)
 Register a table service around a database adapter that implements UMOSQL's schema operations:
 
 ```js
-import { createTableService } from 'uflite/services'
+import { createTableService } from 'uflite/services/table'
 
 const tables = app.service('tables', createTableService(dbAdapter))
 await tables.create({ name: 'users', schema: { name: { type: 'TEXT', notNull: true } } })
@@ -944,7 +956,7 @@ Pass `type: 's3'` to explicitly select S3-compatible storage. Existing S3 config
 ### S3-compatible backend
 
 ```js
-import { createStorageService } from 'uflite/services'
+import { createStorageService } from 'uflite/services/storage'
 
 app.service('storage', createStorageService({
   type: 's3',
@@ -967,7 +979,7 @@ Configure bucket CORS at the storage provider to allow the frontend origin, `PUT
 `createDBService()` uses an isolated in-memory collection by default and accepts optional `initialData`. This data is lost when the process exits and is not shared between server instances. For production persistence, pass a collection provider backed by your configured database:
 
 ```js
-import { createDBService } from 'uflite/services'
+import { createDBService } from 'uflite/services/db'
 
 app.service('users', createDBService(params => database.collection('users')))
 ```
@@ -993,7 +1005,7 @@ Public subpaths include `uflite/middlewares`, `uflite/utils`, `uflite/hooks`, `u
 
 ## 🤝 Contributing
 
-Contributions are welcome. Run `bun test` for the suite and `bun run build` to regenerate distributable files before opening a change.
+Contributions are welcome. Run `bun run build` before `bun test` (the export tests need `dist/`); also run `bun run test:types` and `bun run test:package` to check real package consumers before opening a change.
 
 ---
 

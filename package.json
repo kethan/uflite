@@ -4,7 +4,7 @@
 	"version": "0.2.0",
 	"type": "module",
 	"source": "./src/index.js",
-	"main": "./dist/index.js",
+	"main": "./dist/index.cjs",
 	"module": "./dist/index.es.js",
 	"types": "./dist/index.d.ts",
 	"unpkg": "./dist/index.min.js",
@@ -15,7 +15,7 @@
 			"browser": "./dist/index.es.js",
 			"umd": "./dist/index.umd.js",
 			"import": "./dist/index.es.js",
-			"require": "./dist/index.js",
+			"require": "./dist/index.cjs",
 			"default": "./dist/index.es.js"
 		},
 		"./lite": {
@@ -23,7 +23,7 @@
 			"browser": "./lite/dist/index.es.js",
 			"umd": "./lite/dist/index.umd.js",
 			"import": "./lite/dist/index.es.js",
-			"require": "./lite/dist/index.js",
+			"require": "./lite/dist/index.cjs",
 			"default": "./lite/dist/index.es.js"
 		},
 		"./nano": {
@@ -31,7 +31,7 @@
 			"browser": "./nano/dist/index.es.js",
 			"umd": "./nano/dist/index.umd.js",
 			"import": "./nano/dist/index.es.js",
-			"require": "./nano/dist/index.js",
+			"require": "./nano/dist/index.cjs",
 			"default": "./nano/dist/index.es.js"
 		},
 		"./hooks": {
@@ -39,20 +39,92 @@
 			"import": "./src/hooks/index.js",
 			"default": "./src/hooks/index.js"
 		},
-		"./hooks/flow": { "types": "./src/hooks/flow.d.ts", "import": "./src/hooks/flow.js", "default": "./src/hooks/flow.js" },
-		"./hooks/data": { "types": "./src/hooks/data.d.ts", "import": "./src/hooks/data.js", "default": "./src/hooks/data.js" },
-		"./hooks/auth": { "types": "./src/hooks/auth.d.ts", "import": "./src/hooks/auth.js", "default": "./src/hooks/auth.js" },
-		"./hooks/lifecycle": { "types": "./src/hooks/lifecycle.d.ts", "import": "./src/hooks/lifecycle.js", "default": "./src/hooks/lifecycle.js" },
-		"./hooks/result": { "types": "./src/hooks/result.d.ts", "import": "./src/hooks/result.js", "default": "./src/hooks/result.js" },
-		"./transformers": { "types": "./src/transformers.d.ts", "import": "./src/transformers/index.js", "default": "./src/transformers/index.js" },
-		"./resolvers": { "types": "./src/resolvers.d.ts", "import": "./src/resolvers/index.js", "default": "./src/resolvers/index.js" },
-		"./predicates": { "types": "./src/predicates.d.ts", "import": "./src/predicates/index.js", "default": "./src/predicates/index.js" },
-		"./utils": { "types": "./utils/index.d.ts", "import": "./utils/index.js", "default": "./utils/index.js" },
-		"./middlewares": { "types": "./middlewares.d.ts", "import": "./dist/middlewares.js", "default": "./dist/middlewares.js" },
-		"./services": { "types": "./services/index.d.ts", "import": "./services/index.js", "default": "./services/index.js" },
-		"./services/auth": { "types": "./services/auth.d.ts", "import": "./services/auth.js", "default": "./services/auth.js" },
-		"./services/acl": { "types": "./services/acl.d.ts", "import": "./services/acl.js", "default": "./services/acl.js" },
-		"./package.json": "./package.json"
+		"./hooks/flow": {
+			"types": "./src/hooks/flow.d.ts",
+			"import": "./src/hooks/flow.js",
+			"default": "./src/hooks/flow.js"
+		},
+		"./hooks/data": {
+			"types": "./src/hooks/data.d.ts",
+			"import": "./src/hooks/data.js",
+			"default": "./src/hooks/data.js"
+		},
+		"./hooks/auth": {
+			"types": "./src/hooks/auth.d.ts",
+			"import": "./src/hooks/auth.js",
+			"default": "./src/hooks/auth.js"
+		},
+		"./hooks/lifecycle": {
+			"types": "./src/hooks/lifecycle.d.ts",
+			"import": "./src/hooks/lifecycle.js",
+			"default": "./src/hooks/lifecycle.js"
+		},
+		"./hooks/result": {
+			"types": "./src/hooks/result.d.ts",
+			"import": "./src/hooks/result.js",
+			"default": "./src/hooks/result.js"
+		},
+		"./transformers": {
+			"types": "./src/transformers.d.ts",
+			"import": "./src/transformers/index.js",
+			"default": "./src/transformers/index.js"
+		},
+		"./resolvers": {
+			"types": "./src/resolvers.d.ts",
+			"import": "./src/resolvers/index.js",
+			"default": "./src/resolvers/index.js"
+		},
+		"./predicates": {
+			"types": "./src/predicates.d.ts",
+			"import": "./src/predicates/index.js",
+			"default": "./src/predicates/index.js"
+		},
+		"./utils": {
+			"types": "./utils/index.d.ts",
+			"import": "./utils/index.js",
+			"default": "./utils/index.js"
+		},
+		"./middlewares": {
+			"types": "./middlewares.d.ts",
+			"import": "./dist/middlewares.js",
+			"default": "./dist/middlewares.js"
+		},
+		"./services": {
+			"types": "./services/index.d.ts",
+			"import": "./services/index.js",
+			"default": "./services/index.js"
+		},
+		"./services/auth": {
+			"types": "./services/auth.d.ts",
+			"import": "./services/auth.js",
+			"default": "./services/auth.js"
+		},
+		"./services/acl": {
+			"types": "./services/acl.d.ts",
+			"import": "./services/acl.js",
+			"default": "./services/acl.js"
+		},
+		"./package.json": "./package.json",
+		"./services/db": {
+			"types": "./services/db.d.ts",
+			"import": "./services/db.js",
+			"default": "./services/db.js"
+		},
+		"./services/table": {
+			"types": "./services/table.d.ts",
+			"import": "./services/table.js",
+			"default": "./services/table.js"
+		},
+		"./services/storage": {
+			"types": "./services/storage.d.ts",
+			"import": "./services/storage.js",
+			"default": "./services/storage.js"
+		},
+		"./services/localStorage": {
+			"types": "./services/localStorage.d.ts",
+			"import": "./services/localStorage.js",
+			"default": "./services/localStorage.js"
+		}
 	},
 	"files": [
 		"dist",
@@ -78,7 +150,9 @@
 		"bench:cmp": "bun run bench/bench-cmp.js",
 		"bench:mitata": "bun run bench/bench-mitata.js",
 		"bench:url": "bun run bench/bench-url.js",
-		"bench:size": "bun run bench/bench-size.js"
+		"bench:size": "bun run bench/bench-size.js",
+		"test:types": "tsc --noEmit --module nodenext --moduleResolution nodenext --target es2022 --strict tests/consumer-smoke.mts middlewares.ts",
+		"test:package": "node scripts/check-package.js"
 	},
 	"dependencies": {},
 	"devDependencies": {
@@ -93,7 +167,8 @@
 		"uqry": "^0.1.1",
 		"@aws-sdk/client-s3": "^3.1147.0",
 		"@aws-sdk/s3-request-presigner": "^3.1147.0",
-		"umosql": "0.3.1"
+		"umosql": "0.3.1",
+		"typescript": "^5.9.3"
 	},
 	"keywords": [
 		"router",
@@ -109,5 +184,29 @@
 	"bugs": {
 		"url": "https://github.com/kethan/uflite/issues"
 	},
-	"homepage": "https://github.com/kethan/uflite#readme"
+	"homepage": "https://github.com/kethan/uflite#readme",
+	"peerDependencies": {
+		"umosql": "0.3.1",
+		"@aws-sdk/client-s3": "^3.1147.0",
+		"@aws-sdk/s3-request-presigner": "^3.1147.0",
+		"better-auth": "^1.7.7",
+		"uqry": "^0.1.1"
+	},
+	"peerDependenciesMeta": {
+		"umosql": {
+			"optional": true
+		},
+		"@aws-sdk/client-s3": {
+			"optional": true
+		},
+		"@aws-sdk/s3-request-presigner": {
+			"optional": true
+		},
+		"better-auth": {
+			"optional": true
+		},
+		"uqry": {
+			"optional": true
+		}
+	}
 }

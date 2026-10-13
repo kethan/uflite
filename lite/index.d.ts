@@ -1,20 +1,20 @@
 // core.d.ts - Extends nano + adds hooks
 
-import type { IRequest, FliteApp } from '../nano';
+import type { IRequest, FliteApp } from '../nano/index.js';
 
-export * from '../nano';
+export * from '../nano/index.js';
 
 export type BeforeHook<Req = IRequest> =
     | ((req: Req, ...args: any[]) => void | Response | Promise<void | Response>)
-    | ((req: Req, ...args: any[], next: (err?: any) => Promise<void>) => void | Response | Promise<void | Response>);
+    | ((req: Req, ...args: [...additional: any[], next: (err?: any) => Promise<void>]) => void | Response | Promise<void | Response>);
 
 export type AfterHook<Req = IRequest> =
     | ((res: any, req: Req, ...args: any[]) => any | Promise<any>)
-    | ((res: any, req: Req, ...args: any[], next: (err?: any) => Promise<void>) => any | Promise<any>);
+    | ((res: any, req: Req, ...args: [...additional: any[], next: (err?: any) => Promise<void>]) => any | Promise<any>);
 
 export type ErrorHook<Req = IRequest> =
     | ((err: Error, req: Req, ...args: any[]) => Response | void | Promise<Response | void>)
-    | ((err: Error, req: Req, ...args: any[], next: (err?: any) => Promise<void>) => Response | void | Promise<Response | void>);
+    | ((err: Error, req: Req, ...args: [...additional: any[], next: (err?: any) => Promise<void>]) => Response | void | Promise<Response | void>);
 
 export interface HooksConfig<Req = IRequest> {
     before?: {
