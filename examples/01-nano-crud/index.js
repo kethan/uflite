@@ -9,31 +9,39 @@ const task = id => {
   if (!found) throw new status(404, 'Task not found');
   return found;
 };
-const body = async req => {
+const body = async (req, partial = false) => {
   try {
     const data = await req.json();
-    if (typeof data?.title !== 'string' || !data.title.trim()) throw new Error();
+    if (!data || typeof data !== 'object' || Array.isArray(data)) throw new Error();
+    if (partial) {
+      const fields = Object.keys(data);
+      if (!fields.length || fields.some(key => !['title', 'done'].includes(key)) ||
+          ('done' in data && typeof data.done !== 'boolean') ||
+          ('title' in data && (typeof data.title !== 'string' || !data.title.trim())))
+        throw new Error();
+    } else if (typeof data.title !== 'string' || !data.title.trim()) throw new Error();
     return data;
   } catch {
-    throw new status(400, 'Expected JSON with a non-empty title');
+    throw new status(400, 'Expected a title, or a valid title/done patch');
   }
 };
 
-router.get('/tasks', () => [...tasks.values()]);
-router.get('/tasks/:id', req => task(req.params.id));
-router.post('/tasks', async req => {
+router.get('/api/tasks', () => [...tasks.values()]);
+router.get('/api/tasks/:id', req => task(req.params.id));
+router.post('/api/tasks', async req => {
   const data = await body(req);
   const created = { id: String(nextId++), title: data.title.trim(), done: false };
   tasks.set(created.id, created);
   return json(created, { status: 201 });
 });
-router.patch('/tasks/:id', async req => {
+router.patch('/api/tasks/:id', async req => {
   const current = task(req.params.id);
-  const data = await body(req);
-  Object.assign(current, { title: data.title.trim(), done: typeof data.done === 'boolean' ? data.done : current.done });
+  const data = await body(req, true);
+  if ('title' in data) current.title = data.title.trim();
+  if ('done' in data) current.done = data.done;
   return current;
 });
-router.delete('/tasks/:id', req => {
+router.delete('/api/tasks/:id', req => {
   const removed = task(req.params.id);
   tasks.delete(removed.id);
   return removed;

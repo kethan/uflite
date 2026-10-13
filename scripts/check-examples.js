@@ -30,16 +30,18 @@ const body = async response => response.json();
 
 const checks = [
   async base => {
-    assert.deepEqual(await body(await request(base, '/tasks')), []);
-    const bad = await request(base, '/tasks', { method: 'POST', data: {} });
+    assert.deepEqual(await body(await request(base, '/api/tasks')), []);
+    const bad = await request(base, '/api/tasks', { method: 'POST', data: {} });
     assert.equal(bad.status, 400);
-    const created = await request(base, '/tasks', { method: 'POST', data: { title: 'Ship docs' } });
+    const created = await request(base, '/api/tasks', { method: 'POST', data: { title: 'Ship docs' } });
     assert.equal(created.status, 201);
     const { id } = await body(created);
-    assert.equal((await body(await request(base, `/tasks/${id}`))).title, 'Ship docs');
-    assert.equal((await body(await request(base, `/tasks/${id}`, { method: 'PATCH', data: { title: 'Fixed', done: true } }))).done, true);
-    assert.equal((await body(await request(base, `/tasks/${id}`, { method: 'DELETE' }))).id, id);
-    assert.equal((await request(base, `/tasks/${id}`)).status, 404);
+    assert.equal((await body(await request(base, `/api/tasks/${id}`))).title, 'Ship docs');
+    assert.equal((await body(await request(base, `/api/tasks/${id}`, { method: 'PATCH', data: { done: true } }))).title, 'Ship docs');
+    assert.equal((await body(await request(base, `/api/tasks/${id}`, { method: 'PATCH', data: { title: 'Fixed' } }))).done, true);
+    assert.equal((await request(base, `/api/tasks/${id}`, { method: 'PATCH', data: { done: 'yes' } })).status, 400);
+    assert.equal((await body(await request(base, `/api/tasks/${id}`, { method: 'DELETE' }))).id, id);
+    assert.equal((await request(base, `/api/tasks/${id}`)).status, 404);
     assert.equal((await request(base, '/missing')).status, 404);
     const serverError = await request(base, '/test-error');
     assert.equal(serverError.status, 500);
