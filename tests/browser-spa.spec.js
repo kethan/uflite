@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test'
-import { flite } from '../lite/index.js'
+import { flite } from '../src/lite/index.js'
 
 describe('Browser SPA (lite) - direct values', () => {
   test('root returns HTML string', async () => {

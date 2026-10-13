@@ -1,4 +1,4 @@
-import { isObject } from '../utils/isObject.js'
+import { isObject } from '../utils/is-object.js'
 
 const DEFAULT_BASE_PATH = './data/files'
 const DEFAULT_MAX_FILE_SIZE = 25 * 1024 * 1024

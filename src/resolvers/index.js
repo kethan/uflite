@@ -1,3 +1,5 @@
+import { pathValue } from '../utils/path-value.js';
+
 /**
  * Field resolver helpers compatible with uresolver's field signature:
  *   resolver(value, object, context)
@@ -9,12 +11,12 @@
 export const value = () => current => current;
 
 export const fromPath = (path, { fallback: fallbackValue } = {}) => (current, object) => {
-  const result = String(path).split('.').reduce((value, key) => value == null ? undefined : value[key], object);
+  const result = pathValue(object, path);
   return result === undefined ? fallbackValue : result;
 };
 
 export const fromContext = (path, { fallback } = {}) => (current, object, context) => {
-  const result = String(path).split('.').reduce((value, key) => value == null ? undefined : value[key], context);
+  const result = pathValue(context, path);
   return result === undefined ? fallback : result;
 };
 

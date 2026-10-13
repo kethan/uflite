@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'bun:test'
 import { createSchemalessAdapter } from 'umosql/schemaless'
-import { createAuth } from '../services/createAuth.js'
-import { sqlAdapterFactory } from '../services/sqlAdapterFactory.js'
+import { createAuth } from '../src/services/auth.js'
+import { sqlAdapterFactory } from '../src/services/sql-adapter-factory.js'
 
 const newMemoryAdapter = () => createSchemalessAdapter(undefined, 'memory')
 const SECRET = 'this-is-a-test-secret-with-at-least-32-characters'

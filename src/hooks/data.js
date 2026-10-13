@@ -1,7 +1,5 @@
-import { continueIfMiddleware, createConfiguredError } from '../internal.js';
-
-const getPath = (object, path) =>
-  String(path).split('.').reduce((value, key) => value == null ? undefined : value[key], object);
+import { continueIfMiddleware, createConfiguredError } from './internal.js';
+import { pathValue } from '../utils/path-value.js';
 
 const setPath = (object, path, value) => {
   const keys = String(path).split('.');
@@ -21,9 +19,9 @@ const setPath = (object, path, value) => {
 export const requireFields = (fields, options = {}) => {
   const { target = 'data', allowEmpty = false } = options;
   return async (context, next) => {
-    const value = getPath(context, target);
+    const value = pathValue(context, target);
     const missing = fields.filter(field => {
-      const fieldValue = getPath(value, field);
+      const fieldValue = pathValue(value, field);
       return fieldValue === undefined || fieldValue === null || (!allowEmpty && fieldValue === '');
     });
     if (missing.length) {
@@ -38,7 +36,7 @@ export const requireFields = (fields, options = {}) => {
 };
 
 export const setDefaults = (defaults, { target = 'data' } = {}) => async (context, next) => {
-  let value = getPath(context, target);
+  let value = pathValue(context, target);
   if (value == null) {
     value = {};
     setPath(context, target, value);
@@ -46,7 +44,7 @@ export const setDefaults = (defaults, { target = 'data' } = {}) => async (contex
   if (typeof value === 'object' && !Array.isArray(value)) {
     const resolved = typeof defaults === 'function' ? await defaults(context) : defaults;
     for (const [field, fallback] of Object.entries(resolved ?? {})) {
-      if (getPath(value, field) === undefined) {
+      if (pathValue(value, field) === undefined) {
         setPath(value, field, typeof fallback === 'function' ? await fallback(context) : fallback);
       }
     }
@@ -58,10 +56,10 @@ export const preventChanges = (fields, options = {}) => {
   const { target = 'data', original = context => context.original } = options;
   return async (context, next) => {
     const before = await original(context);
-    const after = getPath(context, target);
+    const after = pathValue(context, target);
     if (before && after && typeof before === 'object' && typeof after === 'object') {
       const changed = fields.filter(field =>
-        getPath(after, field) !== undefined && getPath(after, field) !== getPath(before, field)
+        pathValue(after, field) !== undefined && pathValue(after, field) !== pathValue(before, field)
       );
       if (changed.length) {
         const details = { fields: changed };
@@ -76,7 +74,7 @@ export const preventChanges = (fields, options = {}) => {
 };
 
 export const removeFields = (fields, { target = 'data' } = {}) => async (context, next) => {
-  const value = getPath(context, target);
+  const value = pathValue(context, target);
   if (value && typeof value === 'object' && !Array.isArray(value)) {
     for (const field of fields) {
       const keys = String(field).split('.');
@@ -90,14 +88,14 @@ export const removeFields = (fields, { target = 'data' } = {}) => async (context
 };
 
 export const transformData = (transform, { target = 'data' } = {}) => async (context, next) => {
-  const current = getPath(context, target);
+  const current = pathValue(context, target);
   const transformed = await transform(current, context);
   setPath(context, target, transformed);
   return continueIfMiddleware(next);
 };
 
 export const setQueryDefaults = (defaults, { target = 'params.query' } = {}) => async (context, next) => {
-  let query = getPath(context, target);
+  let query = pathValue(context, target);
   if (query == null) { query = {}; setPath(context, target, query); }
   if (!query || typeof query !== 'object' || Array.isArray(query)) throw new TypeError(`${target} must be an object`);
   const resolved = typeof defaults === 'function' ? await defaults(context) : defaults;
@@ -111,18 +109,18 @@ export const setQueryDefaults = (defaults, { target = 'params.query' } = {}) => 
 
 
 export const setField = (field, value, { target = 'data' } = {}) => async (context, next) => {
-  const current = getPath(context, target);
+  const current = pathValue(context, target);
   if (current == null || typeof current !== 'object' || Array.isArray(current)) {
     setPath(context, target, {});
   }
   const resolved = typeof value === 'function' ? await value(context) : value;
-  setPath(getPath(context, target), field, resolved);
+  setPath(pathValue(context, target), field, resolved);
   return continueIfMiddleware(next);
 };
 
 /** Allowlist fields on an object; unlike removeFields, unknown fields are dropped. */
 export const pickDataFields = (fields, { target = 'data' } = {}) => async (context, next) => {
-  const value = getPath(context, target);
+  const value = pathValue(context, target);
   if (value && typeof value === 'object' && !Array.isArray(value)) {
     const allowed = new Set(fields);
     const picked = Object.fromEntries(Object.entries(value).filter(([key]) => allowed.has(key)));
@@ -134,7 +132,7 @@ export const pickDataFields = (fields, { target = 'data' } = {}) => async (conte
 /** Validate a target using an injected validator. Return true/undefined for success. */
 export const validateData = (validator, options = {}) => async (context, next) => {
   const { target = 'data' } = options;
-  const value = getPath(context, target);
+  const value = pathValue(context, target);
   const result = await validator(value, context);
   if (result === false || (Array.isArray(result) && result.length > 0)) {
     const details = Array.isArray(result) ? { details: result } : {};
@@ -148,7 +146,7 @@ export const validateData = (validator, options = {}) => async (context, next) =
 
 /** Allowlist query keys, dropping unknown keys instead of interpreting them. */
 export const pickQueryFields = (fields, { target = 'params.query' } = {}) => async (context, next) => {
-  let query = getPath(context, target);
+  let query = pathValue(context, target);
   if (query == null) { query = {}; setPath(context, target, query); }
   if (!query || typeof query !== 'object' || Array.isArray(query)) throw new TypeError(`${target} must be an object`);
   const allowed = new Set(fields);
@@ -157,7 +155,7 @@ export const pickQueryFields = (fields, { target = 'params.query' } = {}) => asy
 };
 
 export const transformQuery = (transform, { target = 'params.query' } = {}) => async (context, next) => {
-  let query = getPath(context, target);
+  let query = pathValue(context, target);
   if (query == null) { query = {}; setPath(context, target, query); }
   const transformed = await transform(query, context);
   if (transformed == null || typeof transformed !== 'object' || Array.isArray(transformed)) throw new TypeError('Query transformer must return an object');
@@ -168,7 +166,7 @@ export const transformQuery = (transform, { target = 'params.query' } = {}) => a
 export const preventEmptyData = (options = {}) => {
   const { target = 'data' } = options;
   return async (context, next) => {
-    const value = getPath(context, target);
+    const value = pathValue(context, target);
     if (!value || typeof value !== 'object' || Array.isArray(value) || Object.keys(value).length === 0) {
       throw await createConfiguredError(options, {
         message: 'At least one field is required', status: 400, code: 'EMPTY_DATA'

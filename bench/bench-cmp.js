@@ -1,6 +1,6 @@
-import { flite as nano } from "../nano/index.js";
-import { flite as lite } from "../lite/index.js";
-import { compile, lead, mount, json } from "../plugins.js";
+import { flite as nano } from "../src/nano/index.js";
+import { flite as lite } from "../src/lite/index.js";
+import { compile, lead, mount, json } from "../src/runtime.js";
 import { Hono } from "hono";
 import { Router } from "itty-router";
 

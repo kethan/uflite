@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
-import { flite } from "../lite/index.js";
-import { json } from '../plugins.js';
+import { flite } from "../src/lite/index.js";
+import { json } from '../src/runtime.js';
 import Trouter from "trouter";
 
 const makeRequest = (path, method = "GET", body) =>

@@ -407,7 +407,7 @@ larger application.
 | Authentication | Better Auth integration and adapter factory | `uflite/services/auth` |
 | Access control | Role/resource/method permission rules | `uflite/services/acl` |
 | Table management | List tables, inspect schemas, create tables, alter columns, drop tables | `uflite/services/table` |
-| File storage | `createLocalStorageService` (no AWS SDK) and `createStorageService` (local/S3-compatible uploads, downloads, and presigning) | `uflite/services/localStorage`, `uflite/services/storage` |
+| File storage | `createLocalStorageService` (no AWS SDK) and `createStorageService` (local/S3-compatible uploads, downloads, and presigning) | `uflite/services/local-storage`, `uflite/services/storage` |
 | Events and channels | In-process application events, service mutation events, connection groups | Full `uflite` entry |
 
 The following sections show the service model and reusable feature modules directly. You do not need
@@ -742,9 +742,8 @@ service.remove(id, params?)
 A service implementation can also expose custom methods. They are available on the wrapper and
 can have service hooks, but do not receive generated REST routes unless you register those routes.
 
-For exact type declarations, optional factory arguments, and less common behavior, the repository
-includes `docs/API_REFERENCE.md`, `docs/HOOK_SPEC.md`, and `docs/REAL_WORLD_HOOKS.md`. This README
-documents the main feature set and everyday usage directly so you can start without opening them.
+For hook signatures and longer worked examples, see `docs/HOOK_SPEC.md` and
+`docs/REAL_WORLD_HOOKS.md`. The public declarations live beside the source modules under `src/`.
 
 
 
@@ -1130,8 +1129,8 @@ message bus.
 ## Built-in services and integrations
 
 Optional service factories are imported from their individual subpaths. Install only the
-dependencies needed by the integration you use. Prefer individual imports over the
-`uflite/services` barrel: the barrel eagerly imports DB and AWS-backed modules.
+dependencies needed by the integration you use. There is **no `uflite/services` barrel**; importing
+a specific provider keeps unrelated optional packages out of your installation and bundle.
 
 ### DBService
 
@@ -1468,7 +1467,7 @@ endpoint is for local demonstration only and should not be exposed unauthenticat
 
 ### Local and S3-compatible storage
 
-`uflite/services/localStorage` offers local filesystem storage without the AWS SDK.
+`uflite/services/local-storage` offers local filesystem storage without the AWS SDK.
 `uflite/services/storage` offers local or S3-compatible storage and requires both
 `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner`, including when using its local mode.
 
@@ -1482,7 +1481,7 @@ transfers.
 Local filesystem storage without AWS packages:
 
 ```js
-import { createLocalStorageService } from 'uflite/services/localStorage'
+import { createLocalStorageService } from 'uflite/services/local-storage'
 
 const files = createLocalStorageService({
   basePath: './uploads',
@@ -2222,6 +2221,13 @@ bun run bench:size
 `test:examples` runs each project's documented `npm install` and `npm start`, then checks real
 success and error HTTP requests. Build first so the local `file:../..` dependency has its
 package entry points.
+
+The implementation is organized under `src/`: `src/nano/`, `src/lite/`, and `src/index.js`
+implement the three tiers; `src/runtime.js` contains their shared router primitives. Feature
+modules live in `src/hooks/`, `src/predicates/`, `src/transformers/`, and `src/resolvers/`, with
+optional integrations isolated under `src/services/`. Middleware ships from `src/middlewares.js`;
+shared utilities are in `src/utils/`. Multiword source files use kebab-case. `dist/` is generated
+build output; consumers should use the public package subpaths, not private source paths.
 
 The benchmark fixture is one browser-target, minified GET route returning a Response (Bun 1.4.3).
 It is **not** an application size or throughput guarantee. See [Size comparison](#size-comparison)

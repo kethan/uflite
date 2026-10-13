@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test'
-import { flite } from '../lite/index.js'
+import { flite } from '../src/lite/index.js'
 
 const React = { createElement: (type, props, ...children) => ({ type, props, children }) }
 

@@ -1,4 +1,4 @@
-import { isObject } from '../utils/isObject.js'
+import { isObject } from '../utils/is-object.js'
 
 // umosql's identifier validator accepts word characters and treats identifiers
 // as a single name. Keep the same boundary here, before values reach DDL APIs.

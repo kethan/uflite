@@ -2,8 +2,8 @@ import { describe, expect, it } from 'bun:test'
 import { PatternRouter } from 'hono/router/pattern-router'
 import { RegExpRouter } from 'hono/router/reg-exp-router'
 import { TrieRouter } from 'hono/router/trie-router'
-import { flite } from '../lite/index.js'
-import { json } from '../plugins.js'
+import { flite } from '../src/lite/index.js'
+import { json } from '../src/runtime.js'
 
 const normalizeMatch = router => ({ method, path }) => {
   const [matches, paramStash = []] = router.match(method, path)

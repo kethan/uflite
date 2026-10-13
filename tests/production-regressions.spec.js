@@ -3,9 +3,9 @@ import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { flite, status } from '../src/index.js';
-import { flite as nano } from '../nano/index.js';
-import { createLocalStorageService } from '../services/localStorage.js';
-import { bodyLimit, rateLimit } from '../middlewares.ts';
+import { flite as nano } from '../src/nano/index.js';
+import { createLocalStorageService } from '../src/services/local-storage.js';
+import { bodyLimit, rateLimit } from '../src/middlewares.js';
 
 describe('production error responses', () => {
   test('default handler returns error messages and statuses', async () => {

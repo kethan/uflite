@@ -1,11 +1,10 @@
+import { pathValue } from '../utils/path-value.js';
+
 /**
  * Pure data transformers. Unless a function is explicitly named in-place,
  * transformers return a new value and do not mutate the input.
  */
 const forbidden = new Set(['__proto__', 'prototype', 'constructor']);
-const pathValue = (object, path) =>
-  String(path).split('.').reduce((value, key) => value == null ? undefined : value[key], object);
-
 const assignPath = (object, path, value) => {
   const keys = String(path).split('.');
   if (!keys.length || keys.some(key => !key || forbidden.has(key))) {

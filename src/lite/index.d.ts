@@ -1,4 +1,4 @@
-// core.d.ts - Extends nano + adds hooks
+// Lite: extends nano with request hooks.
 
 import type { IRequest, FliteApp } from '../nano/index.js';
 

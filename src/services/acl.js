@@ -1,5 +1,5 @@
 import { filter } from 'uqry'
-import { isObject } from '../utils/isObject.js'
+import { isObject } from '../utils/is-object.js'
 
 const isPermission = value =>
   typeof value === 'string' &&

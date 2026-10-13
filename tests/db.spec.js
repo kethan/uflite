@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'bun:test'
-import { createDBService } from '../services/db.js'
+import { createDBService } from '../src/services/db.js'
 import { collection } from 'umosql/memory'
 
 describe('DBService', () => {
