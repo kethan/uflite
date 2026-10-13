@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local example data and installs
+examples/**/uploads/
+examples/**/package-lock.json

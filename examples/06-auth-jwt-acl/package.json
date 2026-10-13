@@ -1,0 +1,14 @@
+{
+  "name": "uflite-06-auth-jwt-acl",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun index.js"
+  },
+  "dependencies": {
+    "uflite": "file:../..",
+    "umosql": "0.3.1",
+    "better-auth": "1.7.7",
+    "uqry": "^0.1.1"
+  }
+}

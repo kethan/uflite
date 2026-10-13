@@ -1,9 +1,9 @@
 // full.d.ts - Complete with services, events, channels
 
-import type { FliteApp } from '../nano';
-import type { FliteConfigWithHooks } from '../lite';
+import type { FliteApp } from '../nano/index.js';
+import type { FliteConfigWithHooks } from '../lite/index.js';
 
-export * from '../lite';
+export * from '../lite/index.js';
 
 // ============================================
 // RESPONSE HELPERS

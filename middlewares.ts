@@ -227,10 +227,9 @@ export const rateLimit = (options: {
     const {
         windowMs = 60000,
         max = 100,
-        keyGenerator = (req) =>
-            req.headers.get('x-forwarded-for') ||
-            req.headers.get('x-real-ip') ||
-            'unknown',
+        // Forwarding headers are caller-controlled unless a trusted proxy strips them.
+        // Applications should supply a verified identity via keyGenerator.
+        keyGenerator = () => 'unknown',
         standardHeaders = true
     } = options;
 
@@ -243,6 +242,7 @@ export const rateLimit = (options: {
     }
 
     const hits = new Map<string, number[]>();
+    let warnedUnknown = false;
 
     const cleanup = setInterval(() => {
         const now = Date.now();
@@ -258,7 +258,7 @@ export const rateLimit = (options: {
                 hits.set(key, valid);
             }
         }
-    }, windowMs);
+    }, windowMs) as ReturnType<typeof setInterval> & { unref?: () => void };
 
     // Do not keep the Node.js process alive just for cleanup.
     cleanup.unref?.();
@@ -266,10 +266,9 @@ export const rateLimit = (options: {
     return async (req: Request) => {
         const key = keyGenerator(req);
 
-        if (!key || key === 'unknown') {
-            console.warn(
-                'Rate limiter: Unable to identify client'
-            );
+        if ((!key || key === 'unknown') && !warnedUnknown) {
+            warnedUnknown = true;
+            console.warn('Rate limiter: No trusted client identity; all requests share one bucket');
         }
 
         const now = Date.now();
@@ -294,7 +293,7 @@ export const rateLimit = (options: {
             ).toISOString();
 
         if (validTimestamps.length >= max) {
-            const headers = standardHeaders
+            const headers: Record<string, string> = standardHeaders
                 ? {
                     'RateLimit-Limit': max.toString(),
                     'RateLimit-Remaining': '0',
@@ -469,10 +468,8 @@ export const bodyLimit = (options: {
         size: number | string
     ): number => {
         if (typeof size === 'number') {
-            if (size < 0) {
-                throw new Error(
-                    'Size must be >= 0'
-                );
+            if (!Number.isSafeInteger(size) || size < 0) {
+                throw new Error('Size must be a non-negative safe integer');
             }
 
             return size;
@@ -512,48 +509,44 @@ export const bodyLimit = (options: {
     const maxBytes = parseSize(max);
 
     return async (req: Request) => {
-        const contentLength =
-            req.headers.get('content-length');
+        const contentLength = req.headers.get('content-length');
+        const invalidLength = () => new Response(
+            JSON.stringify({ error: 'Invalid Content-Length' }),
+            { status: 400, headers: { 'Content-Type': 'application/json' } }
+        );
+        const tooLarge = (received: number) => new Response(
+            JSON.stringify({ error: 'Request body too large', max: maxBytes, received }),
+            { status: 413, headers: { 'Content-Type': 'application/json' } }
+        );
 
-        if (contentLength) {
-            const size = parseInt(
-                contentLength,
-                10
-            );
-
-            if (isNaN(size) || size < 0) {
-                return new Response(
-                    JSON.stringify({
-                        error:
-                            'Invalid Content-Length'
-                    }),
-                    {
-                        status: 400,
-                        headers: {
-                            'Content-Type':
-                                'application/json'
-                        }
-                    }
-                );
+        // Content-Length is a cheap early rejection, not a trusted size limit.
+        if (contentLength !== null) {
+            if (!/^(0|[1-9]\d*)$/.test(contentLength) || !Number.isSafeInteger(Number(contentLength))) {
+                return invalidLength();
             }
+            if (Number(contentLength) > maxBytes) return tooLarge(Number(contentLength));
+        }
 
-            if (size > maxBytes) {
-                return new Response(
-                    JSON.stringify({
-                        error:
-                            'Request body too large',
-                        max: maxBytes,
-                        received: size
-                    }),
-                    {
-                        status: 413,
-                        headers: {
-                            'Content-Type':
-                                'application/json'
-                        }
-                    }
-                );
+        // Read a clone so downstream handlers can still consume the original body.
+        // This also covers chunked requests, absent headers, and short/forged lengths.
+        if (!req.body) return;
+        const reader = req.clone().body!.getReader();
+        let received = 0;
+        try {
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                received += value.byteLength;
+                if (received > maxBytes) {
+                    // Cancel both tee branches on rejection so the upstream stream can stop.
+                    // Do not await either cancellation before returning the 413 response.
+                    void reader.cancel().catch(() => {});
+                    void req.body.cancel().catch(() => {});
+                    return tooLarge(received);
+                }
             }
+        } finally {
+            reader.releaseLock();
         }
     };
 };

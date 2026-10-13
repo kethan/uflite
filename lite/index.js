@@ -62,26 +62,32 @@ export const flite = ({ routes = [], before, after, error, ...others } = {}) => 
         }
         if (res == null) {
           const mx = others.match;
+          let matched = false;
           if (mx) {
             const m = mx({ method: mt, path });
             if (m?.params) request.params = m.params;
-            if (m?.handlers?.length) return await run(mode)(m.handlers)(request, ...args);
+            if (m?.handlers?.length) {
+              matched = true;
+              res = await run(mode)(m.handlers)(request, ...args);
+            }
           }
-          const h = [];
-          const all = index.ALL || [];
-          let first;
-          const spec = index[mt] || [];
-          for (const r of spec) {
-            const m = path.match(r[0]);
-            if (m) { request.params = m.groups || {}; first = { hs: r[1], order: r[2] }; break; }
+          if (!matched) {
+            const h = [];
+            const all = index.ALL || [];
+            let first;
+            const spec = index[mt] || [];
+            for (const r of spec) {
+              const m = path.match(r[0]);
+              if (m) { request.params = m.groups || {}; first = { hs: r[1], order: r[2] }; break; }
+            }
+            if (first) {
+              for (const r of all) if (r[2] < first.order && path.match(r[0])) h.push(...r[1]);
+              h.push(...first.hs);
+            } else {
+              for (const r of all) if (path.match(r[0])) h.push(...r[1]);
+            }
+            h.length && (res = await run(mode)(h)(request, ...args));
           }
-          if (first) {
-            for (const r of all) if (r[2] < first.order && path.match(r[0])) h.push(...r[1]);
-            h.push(...first.hs);
-          } else {
-            for (const r of all) if (path.match(r[0])) h.push(...r[1]);
-          }
-          h.length && (res = await run(mode)(h)(request, ...args));
         }
         const a = [...(after?.[mm] || []), ...(after?.all || [])];
         if (a.length) {
