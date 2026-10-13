@@ -1,293 +1,122 @@
-# 🪶 μflite
+# uflite
 
-**A byte-minded Fetch router that grows with your application.** Start with `nano`, add request
-hooks with `lite`, or use the full entry for response helpers, services, events and channels.
-**No mandatory runtime dependencies or HTTP adapter.**
+**A lightweight, Fetch-first router and Feathers-inspired service framework for JavaScript.**
+Use `nano` for routing, `lite` for request hooks, or the full entry for response formatting,
+a service registry, automatic REST routes, global and per-service hooks, service events,
+channels, reusable data hooks, predicates, transformers, resolvers, and optional database,
+authentication, ACL, and storage integrations.
 
-[![Tests](https://github.com/kethan/uflite/actions/workflows/node.js.yml/badge.svg)](https://github.com/kethan/uflite/actions/workflows/node.js.yml) [![npm](https://img.shields.io/npm/v/uflite?style=flat-square)](https://www.npmjs.com/package/uflite) [![License: ISC](https://img.shields.io/badge/license-ISC-blue?style=flat-square)](#testing-security-and-license) [![Dependencies: 0](https://img.shields.io/badge/mandatory_dependencies-0-brightgreen?style=flat-square)](#install-and-optional-integrations)
+The core has **zero mandatory runtime dependencies**. Use the layers you need; the full
+service and integration features do not force every application to install every adapter.
 
-- **Pick your size:** three independently importable entry points.
-- **Keep control:** sequential or onion-style handlers; request and service hooks.
-- **Add only what you use:** database, auth and storage are optional integrations.
-
-> [!TIP]
-> **Fastest start:** `bun add uflite`, copy the [one-file quick start](#quick-start), then run
-> `bun index.js`. No HTTP adapter or separate server file is needed for Bun.
+[![Tests](https://github.com/kethan/uflite/actions/workflows/node.js.yml/badge.svg)](https://github.com/kethan/uflite/actions/workflows/node.js.yml) [![npm](https://img.shields.io/npm/v/uflite?style=flat-square)](https://www.npmjs.com/package/uflite) [![License: ISC](https://img.shields.io/badge/license-ISC-blue?style=flat-square)](#license-and-contributing)
 
 ## Contents
 
-- [Quick start](#quick-start)
+- [Installation](#installation)
 - [Choose an entry point](#choose-an-entry-point)
 - [Size comparison](#size-comparison)
-- [Install and optional integrations](#install-and-optional-integrations)
-- [Six runnable examples](#six-runnable-examples)
-- [Routing, hooks and services](#routing-hooks-and-services)
-- [Practical patterns](#practical-patterns)
-- [API at a glance](#api-at-a-glance)
-- [Complete API reference](#complete-api-reference)
+- [Core concepts and API surface](#core-concepts-and-api-surface)
+- [Quick start](#quick-start)
+- [Build a REST API](#build-a-rest-api)
+- [Features](#features)
+- [Routing, dispatch, and request hooks](#routing-dispatch-and-request-hooks)
 - [Custom matchers](#custom-matchers)
-- [Browser SPA and React routing](#browser-spa-and-react-routing)
-- [Fetch runtimes](#fetch-runtimes-and-optional-integrations)
-- [Testing, security and license](#testing-security-and-license)
+- [Fetch runtimes and server adapters](#fetch-runtimes-and-server-adapters)
+- [Browser SPA and React SPA](#browser-spa-and-react-spa)
+- [Core API at a glance](#core-api-at-a-glance)
+- [Feathers-like service layer](#feathers-like-service-layer)
+  - [Register a service](#register-a-service)
+  - [Beginner example: Notes CRUD](#beginner-example-notes-crud)
+  - [Write your own service](#write-your-own-service)
+  - [Automatic REST routes](#automatic-rest-routes)
+  - [Global and per-service hooks](#global-and-per-service-hooks)
+  - [Lifecycle order and error behavior](#lifecycle-order-and-error-behavior)
+  - [Service events and custom methods](#service-events-and-custom-methods)
+- [Built-in services and integrations](#built-in-services-and-integrations)
+  - [DBService](#dbservice)
+  - [Authentication and ACL](#authentication-and-acl)
+  - [Table service](#table-service)
+  - [Local and S3-compatible storage](#local-and-s3-compatible-storage)
+- [Reusable hooks, transformers, predicates, and resolvers](#reusable-hooks-transformers-predicates-and-resolvers)
+- [HTTP middleware](#http-middleware)
+- [Write your own middleware and hooks](#write-your-own-middleware-and-hooks)
+- [DBService without UMOSQL: a plain JavaScript alternative](#dbservice-without-umosql-a-plain-javascript-alternative)
+- [Events and channels](#events-and-channels)
+- [Example coverage](#example-coverage)
+- [Additional patterns and edge cases](#additional-patterns-and-edge-cases)
+- [Production checklist](#production-checklist)
+- [Security and limitations](#security-and-limitations)
+- [Development and bundle size](#development-and-bundle-size)
+- [License and contributing](#license-and-contributing)
 
-## Quick start
-
-Install `uflite` and save this **one file** as `index.js`:
+## Installation
 
 ```bash
 bun add uflite
+# Or, in another Fetch-compatible runtime:
+npm install uflite
 ```
 
-```js
-import { flite, json } from 'uflite'
-
-const app = flite()
-app.get('/hello', () => json({ hello: 'uflite' }))
-
-export default {
-  port: Number(Bun.env.PORT || 3000),
-  fetch: request => app.fetch(request)
-}
-```
-
-Bun 1.4.3 auto-serves a default `{ fetch }` export **from the CLI entry file**:
-
-```bash
-bun index.js
-curl http://localhost:3000/hello
-# {"hello":"uflite"}
-```
-
-The full entry also supplies a JSON 404 for unmatched routes. Other Fetch hosts can call
-`app.fetch(request)`; see [runtime integration](#fetch-runtimes-and-optional-integrations).
-For a CRUD API, start with [Nano CRUD](examples/01-nano-crud/README.md) rather than expanding
-this first route into an application.
+uflite uses Web `Request` and `Response`. The core needs **no Hono, Node server adapter, or HTTP
+listener**. Bun, Deno, and Cloudflare Workers provide Fetch hosts; Node applications can choose a
+Fetch-compatible host such as Hono with `@hono/node-server`. Database, authentication, ACL, and
+storage integrations are opt-in; install only the packages required by the features you use.
 
 ## Choose an entry point
 
-| Capability | `uflite/nano` | `uflite/lite` | `uflite` (full) |
-| :--- | :---: | :---: | :---: |
-| `flite`, HTTP routes, `use`, `fetch`, custom matcher | ✓ | ✓ | ✓ |
-| Mode `0` sequential / mode `1` onion handlers | ✓ | ✓ | ✓ |
-| Global request `before` / `after` / `error` hooks | — | ✓ | ✓ |
-| Automatic JSON, default 404 and error handler | — | — | ✓ |
-| Service registry, service hooks & REST routes | — | — | ✓ |
-| In-process events & channels | — | — | ✓ |
-| `json`, `text`, `html`, `error`, `status` helpers | — | — | ✓ |
+| Import | Adds | Default unmatched result |
+| :--- | :--- | :--- |
+| `uflite/nano` | Small router and raw handler values | `undefined` |
+| `uflite/lite` | Global request `before`/`after`/`error` hooks | `undefined` unless a hook responds |
+| `uflite` | Formatting, 404/error defaults, services, events, channels | JSON 404 `Response` |
+
+All three support route methods, `use`, mounting, custom matchers, and mode 0/1 handlers. Only
+the **full** entry exports `json`, `text`, `html`, `error`, and `status`; importing these
+helpers beside nano/lite increases their bundle. Nano/lite do not register services or
+automatically format raw results.
+
+The familiar nano learning pattern is:
 
 ```js
-import { flite as nano } from 'uflite/nano' // routing only
-import { flite as lite } from 'uflite/lite' // routing + global request hooks
-import { flite, json, error } from 'uflite' // full features + response helpers
+import { flite } from 'uflite/nano'
+import { json, error } from 'uflite'
+
+const router = flite()
+router.get('/hello', () => ({ hello: 'world' }))
+router.all('*', () => error(404, 'Not found'))
+
+export default {
+  fetch: (request, ...args) =>
+    router.fetch(request, ...args).then(json).catch(error)
+}
 ```
 
-> [!IMPORTANT]
-> `json` and `error` belong to **`uflite`**, not `uflite/nano` or `uflite/lite`. Importing the
-> helpers from full alongside a nano/lite router works, but increases the bundle. For the
-> smallest possible build, return native `Response` objects instead. Nano/lite return raw values
-> or `undefined` on misses; only full formats responses and registers services.
-
-## Size comparison
-
-Measured with `bun run bench:size` (Bun **1.4.3**; browser-target, minified, bundled **one GET
-`/hello` route returning a Response**, then gzip):
-
-| Entry | Minified | Gzip |
-| :--- | ---: | ---: |
-| `uflite/nano` | **1,385 B** | **799 B** |
-| `uflite/lite` | **2,470 B** | **1,251 B** |
-| `uflite` | **6,134 B** | **2,690 B** |
-| Hono 4.10.6 | 19,026 B | 7,623 B |
-| itty-router 4.2.2 | 1,122 B | 689 B |
-
-Nano is **110 B larger gzip** than itty-router in this fixture; lite/full are smaller than Hono.
-The comparisons are *benchmarks*, not dependencies or throughput claims. Importing full `json`
-into nano changes the resulting bundle. Reproduce with `bun run bench:size`; `bun run bench`,
-`bench:cmp`, `bench:mitata` and `bench:url` test other performance questions.
-
-## Install and optional integrations
-
-```bash
-bun add uflite       # use Bun.serve or export a Fetch handler
-# or: npm install uflite  (on another Fetch-compatible runtime)
-```
-
-**No Hono, Node adapter or web server package is needed by uflite.** A Fetch runtime such as
-Bun, Cloudflare Workers or Deno supplies the HTTP host. The six local HTTP projects below run
-with Bun. Optional integration packages are installed **by your application** when used:
-
-- **Core:** `uflite`, `/nano`, `/lite`, `/middlewares`, `/hooks`, `/predicates`,
-  `/transformers`, `/resolvers`, and `/utils` need nothing else.
-- **Database:** `uflite/services/db` needs `umosql@0.3.1`. The optional
-  `uflite/services/table` needs a supplied table adapter, not a new package.
-- **Auth and access:** `uflite/services/auth` needs `better-auth` plus a compatible
-  adapter (such as UMOSQL). `uflite/services/acl` needs `uqry`.
-- **Storage:** `uflite/services/localStorage` needs only a local directory;
-  `uflite/services/storage` needs both `@aws-sdk/client-s3` and
-  `@aws-sdk/s3-request-presigner`, even for its local mode.
-- **Barrel:** `uflite/services` eagerly imports UMOSQL and both AWS packages.
-  Prefer individual service subpaths.
-
-`better-auth` and `uqry` are imported separately, not by the services barrel. Import paths and
-signatures are in the [complete reference](#complete-api-reference).
-
-## Six runnable examples
-
-In a checkout, first run **`bun install && bun run build`** at the root. Each project has its
-own `package.json`, uses `file:../..` for the built checkout, and has documented `curl`
-success/error flows. Projects 01–05 export a Fetch handler from `index.js` and have a tiny
-`server.js` calling `Bun.serve`; 06 auto-serves its single `index.js`. Each defaults to port
-3000 (`PORT` overrides it). **None installs Hono or a Node adapter.**
-
-Run one project, then follow its README's `curl` requests:
-
-```bash
-cd examples/01-nano-crud # or choose 02–06 below
-npm install
-npm start
-```
-
-1. **[Nano CRUD](examples/01-nano-crud/README.md)** — basic plural REST routing,
-   JSON create/update/delete, 400/404/500 responses. `GET /api/tasks` is the starting point.
-2. **[Nano practical](examples/02-nano-practical/README.md)** — flat query filters,
-   API-key guard and mounted `/api/tasks` router.
-3. **[Lite notes](examples/03-lite-notes/README.md)** — global before/after/error request
-   hooks and a separate notes module.
-4. **[Full services](examples/04-full-services/README.md)** — generated DBService routes,
-   real Better Auth sessions, ACL and local storage (S3 optional).
-5. **[Full lifecycle](examples/05-full-middleware-resolvers/README.md)** — HTTP middleware,
-   service hooks, resolvers, predicates and mutation events.
-6. **[Login, JWT and ACL](examples/06-auth-jwt-acl/README.md)** — real sign-up/sign-in,
-   cookie-gated JWT issuance, verified bearer requests and ACL allow/deny. One Bun file.
-
-> [!NOTE]
-> **StackBlitz:** these local projects depend on `file:../..` and a built checkout. No
-> StackBlitz run or standalone-folder import has been verified; there are no fabricated launch
-> links. Replace the local dependency with a published version only after verifying the exact
-> example on StackBlitz.
-
-**Feature map:** 01–02 cover routing, query params and mounting; 03 request hooks;
-04 DBService, auth/ACL and storage; 05 middleware, service hooks, transformers,
-resolvers, predicates and events; 06 JWT login and ACL. For channels, custom
-matchers, browser routing and complete signatures, see
-[events and channels](#events-channels-and-other-exports),
-[custom matchers](#custom-matchers), [browser routing](#browser-spa-and-react-routing)
-and the [API reference](#complete-api-reference). This is a guide to the available
-features, **not** a claim that a single example runs every optional integration.
-
-## Routing, hooks and services
-
-```text
-Request → nano router (route matching / handlers)
-            └─ lite (global before → route → after / error)
-                 └─ full (format / missing + services + events + channels)
-```
-
-**Routes.** `app.get('/tasks/:id', req => json({ id: req.params.id, tag: req.query.tag }))`
-matches a segment; `req.query` is flat; repeated keys with a nonempty first value become arrays
-(a leading empty value can be overwritten). `app.get('/files/*', ...)` matches descendants.
-`app.use('/api', child)` mounts registered child routes; `app.use('/api/*', handler)` adds an
-ALL middleware route (register guards **before** protected routes). A `match({method,path})`
-callback may return `{handlers,params?}` instead of registered lookup. The deliberately compact
-route compiler treats literal regexp punctuation such as `.` as regex syntax; it **does not
-escape** literal paths.
-
-**Two execution modes.** Handler args start with the Web Request (`req.params`, `req.query`),
-followed by any adapter args. Mode 1's `next` comes **last**.
-
-| | `mode: 0` (default) | `mode: 1` |
-| :--- | :--- | :--- |
-| Handler | `(req, ...adapterArgs) => value` | `(req, ...adapterArgs, next) => value` |
-| Flow | First non-nullish result stops the chain | Explicit `await next()` for onion-style traversal |
-| Typical use | Small REST endpoints | Pre/post logic around downstream handlers |
-
-```js
-import { flite, json } from 'uflite'
-const app = flite({ mode: 1 })
-app.get('/private',
-  async (req, next) => {
-    if (!req.headers.get('authorization')) return json({ error: 'Unauthorized' }, { status: 401 })
-    await next()  // run the next handler; code here runs on the way back
-  },
-  () => json({ secret: 'only with an auth header' })
-)
-// Direct invocation: await app.fetch(new Request('https://example.test/private'))
-```
-
-**Request hooks** (lite/full) accept
-`{ before: {all, get, post, ...}, after: {...}, error: {...} }` in `flite`. `before` receives
-`req`, `after` receives `(result, req)`, `error` receives `(err, req)`; each can access adapter
-args. They are **not** service-context hooks.
-
-**Service hooks** (full only) use `app.service(name, implementation)` and
-`service.hooks({before,after,error})` or `app.hooks(...)`. A service hook receives mutable
-`{app,service,path,method,params,id?,data?,result?,error?}`. On success: app.before.all →
-app.before.method → service.before.all → service.before.method → implementation →
-service.after.method → service.after.all → app.after.method → app.after.all. Implementation
-exceptions enter service.error.method → service.error.all → app.error.method → app.error.all,
-then rethrow; these hooks observe errors, they do not recover the call. Failures in **before or
-after hooks** bypass the service error hooks (though request-level error hooks can handle a
-rejected REST request). In mode 1 each hook must call `next()` for the next hook to run,
-including error hooks. `created`, `updated`, `patched`, `removed` events fire on successful
-mutations. `setup` at registration and `app.teardown()` do **not await** async lifecycle
-operations.
-
-Only implemented standard service methods auto-register REST routes (`GET /name`,
-`GET /name/:id`, `POST /name`, `PUT /name/:id`, `PATCH /name/:id`, `DELETE /name/:id`); custom
-methods are direct-call only unless you write a route. `PUT` maps to service `update` when
-implemented; the Nano CRUD example deliberately uses only partial `PATCH`. **Protect generated routes** before
-registration if data is sensitive. See
-[example 05](examples/05-full-middleware-resolvers/index.js) for a complete lifecycle.
-
-The [Nano CRUD example](examples/01-nano-crud/README.md) uses explicit plural resource
-routes rather than generated service routes:
-
-| Method | Route | Example response |
-| :--- | :--- | :--- |
-| `GET` | `/api/tasks` | 200, JSON array |
-| `GET` | `/api/tasks/:id` | 200 task, or 404 |
-| `POST` | `/api/tasks` | 201 task; invalid data 400 |
-| `PATCH` | `/api/tasks/:id` | 200 updated task; partial `done` or `title` |
-| `DELETE` | `/api/tasks/:id` | 200 removed task in body, or 404 |
-
-The full DBService example instead exposes generated `/tasks` routes with its actual HTTP
-behavior, not implicit 201/204 or flat-query pagination. See
-[service registry](#service-registry) for the exact distinction.
-
-## Practical patterns
-
-These **mounted router, middleware, service lifecycle and storage recipes** are independent
-patterns, not mandatory layers. Follow the linked runnable projects for complete HTTP flows.
-
-### Nano Fetch wrappers and error policy
-
-Nano returns handler values directly and `undefined` on a miss. Its introductory
-`router.fetch(request, ...args).then(json).catch(error)` pattern formats results, but
-**exposes thrown 5xx messages**. Register an explicit 404 fallback, as in
-[Nano CRUD](examples/01-nano-crud/README.md); use the redacting policy below when deploying.
-Lite and full have request error hooks; neither needs this nano wrapper.
+This `.catch(error)` **exposes thrown 5xx messages** and is for learning. Nano itself returns
+`undefined` on a miss, hence the explicit fallback. For a deployed nano API, use the
+[redacting wrapper](#production-safe-nano-errors) instead. Lite can handle errors with request
+hooks; full has a default error hook, but **its 5xx messages are also not redacted**.
 
 <details>
 <summary>Production-safe nano error handling</summary>
 
 ### Production-safe nano errors
 
-For a deployed nano app, **replace** the introductory wrapper (do not use both defaults). This
-version guarantees a Response for unmatched routes, logs internal failures on the server, keeps
-deliberate 4xx messages, and never sends a 5xx exception message to the client:
+Replace the demo wrapper—not the router—with one that explicitly handles misses and logs
+internal failures:
 
 ```js
 import { json, error } from 'uflite'
-// router is the nano instance with your routes registered above.
+
 export default {
   fetch: (request, ...args) => router.fetch(request, ...args)
     .then(value => value ?? error(404, 'Not found'))
     .then(json)
     .catch(err => {
-      const code = Number.isInteger(err?.status) && err.status >= 400 && err.status < 500
-        ? err.status : 500
+      const code = Number.isInteger(err?.status) &&
+        err.status >= 400 && err.status < 500 ? err.status : 500
       if (code === 500) {
-        console.error('Request failed:', err) // server-side log; configure your logger
+        console.error('Request failed:', err)
         return error(500, 'Internal Server Error')
       }
       return error(code, err.message || 'Request rejected')
@@ -295,784 +124,2117 @@ export default {
 }
 ```
 
-The 404 is explicit: nano has **no** built-in missing-route handler. Do not put sensitive data
-in deliberate 4xx messages either. A configured request error hook is the equivalent
-customization for lite/full; the full entry's **default** error hook exposes 5xx messages unless
-you replace it.
+Do not put secrets in deliberate 4xx errors, either. The corresponding runnable repository sample uses the introductory wrapper and links back
+to this alternative.
 
 </details>
 
-### Response helpers · no `Response.json` needed
+
+## Size comparison
+
+Measured with `bun run bench:size` using Bun 1.4.3: browser-target, minified, bundled single-route fixtures (one `GET /hello` route returning a `Response`), then gzip. These are **fixture sizes**, not whole-app sizes or throughput claims.
+
+| Entry / router | Minified | Gzip | Included in fixture |
+| :--- | ---: | ---: | :--- |
+| `uflite/nano` | 1,385 B | 799 B | Routing only |
+| `uflite/lite` | 2,470 B | 1,251 B | Routing + global request hooks |
+| `uflite` | 6,134 B | 2,690 B | Full router + response/service framework |
+| Hono 4.10.6 | 19,026 B | 7,623 B | Same one-route fixture |
+| itty-router 4.2.2 | 1,122 B | 689 B | Same one-route fixture |
+
+Nano is 110 B larger gzip than itty-router in this fixture. Lite/full are smaller than Hono in this fixture. These comparisons are only meaningful for the same benchmark and toolchain; importing `json` from full alongside nano/lite increases the resulting bundle. Reproduce the numbers with `bun run bench:size`.
+
+## Core concepts and API surface
+
+Start with the router; add the optional service factories only when you need them. All three entry
+points expose the same core routing model and work with Fetch `Request` objects.
+
+### Route registration and dispatch
 
 ```js
-import { flite, json, text, html, error, status } from 'uflite'
+import { flite } from 'uflite' // or 'uflite/lite' / 'uflite/nano'
+
 const app = flite()
-app.post('/json', () => json({ ok: true }, { status: 201 }))
+app.get('/health', request => ({ ok: true }))
+app.get('/users/:id', request => ({ id: request.params.id }))
+app.post('/users', async request => ({ created: await request.json() }))
+app.all('/debug/*', request => ({ method: request.method, path: new URL(request.url).pathname }))
+
+const response = await app.fetch(new Request('https://example.test/users/42'))
+```
+
+Available route methods are `get`, `post`, `put`, `patch`, `delete`, `head`, `options`, and `all`
+(uppercase aliases also work). `app.use(handlerOrRouter)` adds middleware or mounts a child router;
+`app.use('/api', child)` mounts child routes under a prefix. Route params are on `request.params`.
+Query parameters are exposed as a flat `request.query` object; repeated keys can become arrays.
+A custom `match({ method, path })` callback returns `{ handlers, params? }`; see the examples below.
+
+### Execution modes
+
+| | `mode: 0` (default) | `mode: 1` |
+| :--- | :--- | :--- |
+| Flow | Sequential; first non-`null`/non-`undefined` result stops | Onion-style; handlers explicitly call `next()` |
+| Handler shape | `(request, ...hostArgs) => result` | `(request, ...hostArgs, next) => result` |
+| Best for | Simple endpoints and fall-through handlers | Middleware that runs before and after downstream work |
+
+```js
+import { flite, json } from 'uflite'
+const app = flite({ mode: 1 })
+app.get('/private', async (request, next) => {
+  if (!request.headers.get('authorization')) return json({ error: 'Unauthorized' }, { status: 401 })
+  await next()
+}, () => json({ ok: true }))
+```
+
+### Response and error helpers (full entry only)
+
+```js
+import { flite, json, text, html, response, error, status } from 'uflite'
+
+const app = flite()
+app.get('/json', () => json({ ok: true }))
 app.get('/text', () => text('Hello'))
 app.get('/html', () => html('<strong>Hello</strong>'))
 app.get('/missing', () => error(404, 'Not found'))
-app.get('/private', () => { throw new status(401, 'Sign in first') })
+app.get('/invalid', () => { throw new status(400, 'Invalid input') })
 ```
 
-Full uflite also converts plain objects to JSON and supplies its own unmatched-route 404. Nano
-needs an explicit formatter or wrapper when handlers return plain values; lite can use its
-`after` hook for formatting (or explicitly return `json(...)`). Returning a `Response` from
-`json` is safe to pass through `json` again; a 5xx `error` response can reveal its original
-message.
+Full uflite formats plain values as JSON and supplies default missing-route/error handling. Nano and
+lite return raw values (or `undefined` on a miss); use native `Response` values or add a wrapper when
+you need HTTP responses. The full entry's default error response includes `err.message`, even for
+5xx errors—replace it with a redacting error hook before production.
 
-### Global request hooks · before / after / error
+## Quick start
+
+Install uflite:
+
+```bash
+bun add uflite
+# or
+npm install uflite
+```
+
+Create one file named `app.js`:
+
+```js
+import { flite } from 'uflite'
+
+const app = flite()
+
+app.get('/api/health', () => ({ ok: true }))
+app.get('/api/hello/:name', req => ({
+  message: `Hello, ${req.params.name}`,
+  query: req.query
+}))
+
+Bun.serve({
+  port: Number(Bun.env.PORT || 3000),
+  fetch: app.fetch
+})
+
+console.log('Listening on http://localhost:3000')
+```
+
+Run and test it:
+
+```bash
+bun app.js
+curl -i http://localhost:3000/api/health
+curl 'http://localhost:3000/api/hello/Ada?from=docs'
+```
+
+The full entry automatically formats plain values as JSON and provides a default JSON 404.
+The same Fetch handler can be deployed to a compatible runtime; Bun is only the local HTTP
+server in this quick start.
+
+
+## Build a REST API
+
+For a small API without a database dependency, **replace `app.js`** with the following. The
+in-memory `Map` is application data, not a uflite service. It resets when the server restarts.
+Append the `Bun.serve` call below to the same `app.js` file.
+
+```js
+import { flite, json, error, status } from 'uflite'
+
+const tasks = new Map()
+let nextId = 1
+
+const app = flite({
+  error: { all: [err => {
+    const code = Number.isInteger(err?.status) &&
+      err.status >= 400 && err.status <= 599 ? err.status : 500
+    if (code >= 500) console.error(err) // log privately
+    return error(code, code >= 500 ? 'Internal Server Error' : err.message)
+  }] }
+})
+
+const find = id => {
+  const task = tasks.get(id)
+  if (!task) throw new status(404, 'Task not found')
+  return task
+}
+
+const body = async request => {
+  try { return await request.json() }
+  catch { throw new status(400, 'Invalid JSON') }
+}
+
+const title = value => {
+  if (typeof value !== 'string' || !value.trim())
+    throw new status(400, 'title is required')
+  return value.trim()
+}
+
+app.get('/api/tasks', request => {
+  const done = request.query.done
+  if (done !== undefined && done !== 'true' && done !== 'false')
+    throw new status(400, 'done must be true or false')
+  const list = [...tasks.values()]
+  return json(done === undefined
+    ? list
+    : list.filter(task => task.done === (done === 'true')))
+})
+
+app.get('/api/tasks/:id', request => json(find(request.params.id)))
+
+app.post('/api/tasks', async request => {
+  const data = await body(request)
+  const cleanTitle = title(data?.title)
+  const task = { id: String(nextId++), title: cleanTitle, done: false }
+  tasks.set(task.id, task)
+  return json(task, {
+    status: 201,
+    headers: { location: `/api/tasks/${task.id}` }
+  })
+})
+
+app.patch('/api/tasks/:id', async request => {
+  const task = find(request.params.id)
+  const data = await body(request)
+  if (!data || typeof data !== 'object' || Array.isArray(data) ||
+      !Object.keys(data).length ||
+      Object.keys(data).some(key => !['title', 'done'].includes(key)))
+    throw new status(400, 'Send title and/or done')
+  const newTitle = 'title' in data ? title(data.title) : task.title
+  const newDone = 'done' in data ? data.done : task.done
+  if (typeof newDone !== 'boolean') throw new status(400, 'done must be boolean')
+  Object.assign(task, { title: newTitle, done: newDone })
+  return json(task)
+})
+
+app.delete('/api/tasks/:id', request => {
+  tasks.delete(find(request.params.id).id)
+  return new Response(null, { status: 204 })
+})
+
+export default app
+
+Bun.serve({
+  port: Number(Bun.env.PORT || 3000),
+  fetch: app.fetch
+})
+```
+
+| Method | Resource | This starter does |
+| :--- | :--- | :--- |
+| `GET` | `/api/tasks` | List; optional `?done=true` or `false` |
+| `GET` | `/api/tasks/:id` | Get one task |
+| `POST` | `/api/tasks` | Create; **201**, JSON and `Location` |
+| `PATCH` | `/api/tasks/:id` | Change `title` and/or `done`; **200** |
+| `DELETE` | `/api/tasks/:id` | Delete; **204**, no body |
+
+Try it in another terminal after `bun app.js`:
+
+```bash
+curl http://localhost:3000/api/tasks
+# []
+
+curl -i -X POST http://localhost:3000/api/tasks \
+  -H 'content-type: application/json' \
+  -d '{"title":"Ship docs"}'
+# 201 Created; Location: /api/tasks/1
+# {"id":"1","title":"Ship docs","done":false}
+
+curl http://localhost:3000/api/tasks/1
+# {"id":"1","title":"Ship docs","done":false}
+
+curl 'http://localhost:3000/api/tasks?done=false'
+# [{"id":"1","title":"Ship docs","done":false}]
+
+curl -X PATCH http://localhost:3000/api/tasks/1 \
+  -H 'content-type: application/json' -d '{"done":true}'
+# {"id":"1","title":"Ship docs","done":true}
+
+curl -i -X DELETE http://localhost:3000/api/tasks/1
+# 204 No Content
+```
+
+**Errors are JSON, too.** `POST` with `{}` returns 400
+`{"status":400,"error":"title is required"}`. Reading `/api/tasks/999` returns 404
+`{"status":404,"error":"Task not found"}`. Unmatched routes get the full entry's default 404.
+
+The error hook logs unexpected exceptions and returns
+`{"status":500,"error":"Internal Server Error"}` rather than revealing internals. To exercise
+that path locally, temporarily add
+`app.get('/api/demo-error', () => { throw new Error('private detail') })` before
+`export default app`, then `curl -i http://localhost:3000/api/demo-error`. **Remove that
+diagnostic route before deployment.**
+
+This starter explicitly supports `done` filtering, **not pagination or sorting**. It does not
+register `PUT`; use [DBService](#dbservice) when you need its built-in filtering, sorting,
+projection, and pagination behavior.
+
+## Features
+
+uflite is intentionally layered. It can be a tiny router, or the HTTP and service layer for a
+larger application.
+
+| Capability | Included | Where it lives |
+| --- | --- | --- |
+| Fetch-first routing | Path parameters, query parsing, method routes, route mounting, custom matchers | `uflite/nano`, `uflite/lite`, `uflite` |
+| Dispatch modes | Simple first-result dispatch or explicit `next()` onion flow | All three router entries |
+| Request lifecycle | Global `before`, `after`, and `error` hooks | `uflite/lite`, `uflite` |
+| Response handling | JSON, text, HTML, status-aware errors, default 404 and formatting | `uflite` |
+| Feathers-like services | Service registry, standard CRUD methods, automatic REST routes, custom methods | `uflite` |
+| Service lifecycle | Global and per-service before/after/error hooks, setup/teardown, mutation events | `uflite` |
+| Data/business hooks | Validation, defaults, field filtering, auth checks, ownership, rate limits, side effects, audit fields | `uflite/hooks` |
+| Data transformation | Normalize strings, email, whitespace, numbers, booleans, arrays, object fields and paths | `uflite/transformers` |
+| Field resolution | Resolve paths/context, relations, arrays, fallbacks, redaction, aggregates | `uflite/resolvers` |
+| Predicates | Type checks, comparisons, string/array checks, path checks, async combinators | `uflite/predicates` |
+| HTTP middleware | CORS, logging, bearer/basic auth, rate limiting, body limits, security headers, request IDs | `uflite/middlewares` |
+| Database service | Feathers-style find/get/create/update/patch/remove and pagination | `uflite/services/db` |
+| Authentication | Better Auth integration and adapter factory | `uflite/services/auth` |
+| Access control | Role/resource/method permission rules | `uflite/services/acl` |
+| Table management | List tables, inspect schemas, create tables, alter columns, drop tables | `uflite/services/table` |
+| File storage | `createLocalStorageService` (no AWS SDK) and `createStorageService` (local/S3-compatible uploads, downloads, and presigning) | `uflite/services/localStorage`, `uflite/services/storage` |
+| Events and channels | In-process application events, service mutation events, connection groups | Full `uflite` entry |
+
+The following sections show the service model and reusable feature modules directly. You do not need
+to learn every layer before building a useful app.
+
+## Routing, dispatch, and request hooks
+
+All entries support route registration and mounting. `:param` captures a path segment; query
+parameters are available as a flat `request.query` object. Repeated non-empty query keys may
+become arrays.
+
+```js
+import { flite, json } from 'uflite'
+
+const app = flite()
+
+app.get('/api/users/:id', req => json({
+  id: req.params.id,
+  tag: req.query.tag
+}))
+
+const v1 = flite().get('/users', () => [{ id: '1' }])
+app.use('/api/v1', v1)
+```
+
+`app.use('/api/v1', child)` mounts a router under a prefix. `app.use('/private/*', guard)` adds
+an all-method route; register guards before the protected routes.
+
+| Behavior | `mode: 0` (default) | `mode: 1` |
+| --- | --- | --- |
+| Handler signature | `(request, ...adapterArgs)` | `(request, ...adapterArgs, next)` |
+| Continue dispatch | A `null`/`undefined` result lets dispatch continue | Call `await next()` explicitly |
+| Best for | Compact route handlers and simple guards | Middleware that needs code before and after downstream handlers |
+
+In mode 1, `next` is the **last** argument. When a Fetch host supplies extra arguments, do not
+mistake an adapter argument for `next`. For middleware that accepts optional `next`, wrap it as
+`req => middleware(req)` when registering it in mode 0.
+
+Lite and full request hooks use method keys such as `all`, `get`, and `post`:
 
 ```js
 import { flite } from 'uflite/lite'
 import { json, error } from 'uflite'
-const router = flite({
-  before: { all: [req => { req.startedAt = Date.now() }] },
-  after: { all: [(response, req) => {
-    response?.headers.set('x-duration-ms', String(Date.now() - req.startedAt))
-    return response
-  }] },
-  error: { all: [err => error(err.status || 500, err.message)] }
+
+const app = flite({
+  before: {
+    all: [req => { req.startedAt = Date.now() }]
+  },
+  after: {
+    all: [(result, req) => {
+      if (!(result instanceof Response)) return result
+      const headers = new Headers(result.headers)
+      headers.set('x-duration-ms', String(Date.now() - req.startedAt))
+      return new Response(result.body, {
+        status: result.status,
+        statusText: result.statusText,
+        headers
+      })
+    }]
+  },
+  error: {
+    all: [err => error(err.status || 500, err.status >= 500
+      ? 'Internal Server Error'
+      : err.message)]
+  }
 })
-router.get('/health', () => json({ ok: true }))
+
+app.get('/health', () => json({ ok: true }))
 ```
 
-Request hooks receive a Request or Response, **not** a service context. A custom error hook
-replaces the default in full; this sample preserves error messages to demonstrate the API, not
-as production redaction policy. The [lite notes app](examples/03-lite-notes/index.js) shows CRUD
-and 4xx/5xx handling.
-
-### Nested routers · versioned APIs
-
-```js
-import { flite } from 'uflite/nano'
-import { json, error } from 'uflite'
-const v1 = flite().get('/users', () => [{ id: 1 }])
-const v2 = flite().get('/users', () => [{ id: 1, name: 'Ada' }])
-const router = flite()
-router.use('/api/v1', v1).use('/api/v2', v2)
-router.all('*', () => error(404, 'Not found'))
-export default { fetch: (request, ...args) => router.fetch(request, ...args).then(json).catch(error) }
-// /api/v1/users and /api/v2/users; tested mounting also in example 02
-```
-
-### Middleware templates · mode 1 and paired phases
-
-```js
-import { flite, json } from 'uflite'
-import { cors, corsAfter, requestId, requestIdAfter } from 'uflite/middlewares'
-const router = flite({ mode: 1,
-  before: { all: [cors({ origin: 'https://app.example' }), requestId()] },
-  after: { all: [corsAfter, requestIdAfter] }
-})
-router.get('/health', () => json({ ok: true }))
-// Supply a verified auth identity and your own CORS policy before exposing real data.
-```
-
-For your own mode-1 middleware: `(req, next) => { /* before */ await next(); /* after */ }`. For
-cross-phase data in separate before/after hooks, store metadata in a `WeakMap` keyed by the
-Request rather than trusting client headers. HTTP middleware is **not** the same as service
-hooks. See [middleware option signatures](#http-middleware).
-
-### Service hooks, events and custom methods
-
-```js
-import { flite, json, status } from 'uflite'
-const app = flite()
-const rows = []
-const users = app.service('users', {
-  async find() { return rows },
-  async create(data) { const user = { id: String(rows.length + 1), ...data }; rows.push(user); return user },
-  async count() { return rows.length } // direct-call only; no generated /users/count
-})
-app.hooks({ before: { all: [ctx => console.log(ctx.method, ctx.path)] } })
-users.hooks({
-  before: { create: [ctx => { if (!ctx.data?.name) throw new status(400, 'name required') }] },
-  after: { create: [ctx => { ctx.result.label = ctx.result.name.toUpperCase() }] }
-})
-users.on('created', user => console.log('created', user.id))
-app.get('/user-count', async () => json({ count: await users.count() }))
-```
-
-`POST /users` calls the standard `create`; `users.count()` is hookable but not auto-routed, so
-`/user-count` is explicit. Before-hooks, implementation, after-hooks, then the `created` event
-run in that order; generated service HTTP routes need access control.
-[Example 05](examples/05-full-middleware-resolvers/index.js) combines this with resolvers and
-predicates.
-
-### Database, schema and auth adapters
-
-```js
-import { flite } from 'uflite'
-import { createDBService } from 'uflite/services/db'      // bun add umosql@0.3.1
-import { createTableService } from 'uflite/services/table' // supply a real DDL-capable adapter
-import { createAuth } from 'uflite/services/auth'         // bun add better-auth umosql@0.3.1
-import { createACL } from 'uflite/services/acl'           // bun add uqry
-import { createSchemalessAdapter } from 'umosql/schemaless'
-
-const app = flite()
-const tasks = app.service('tasks', createDBService()) // isolated memory; generated REST
-// For persistence, replace the line above with createDBService(() => yourCollection).
-// const tables = createTableService(dbAdapter) // needs a DDL-capable adapter
-const { adapter } = createSchemalessAdapter(undefined, 'memory')
-const auth = await createAuth({ adapter, baseURL: 'http://localhost:3000', secret: Bun.env.AUTH_SECRET })
-const acl = createACL({ enabled: true, rules: [{ id: 'members', permissions: ['member:tasks:find'] }] })
-// Mount auth.handler(request) at /api/auth/*; use auth.api.getSession({headers:req.headers})
-// and a trusted role before calling acl.can({user:session.user}, 'member:tasks:find').
-```
-
-The snippet above is **wiring**, not a standalone server: generated `tasks` routes are public
-until you add authorization, and `auth`/`acl` need a trusted session guard. Set a real secret; the
-[runnable full example](examples/04-full-services/index.js) includes the session guard, ACL hook
-and HTTP verification. UMOSQL memory resets on restart. DBService REST passes flat query params
-while its direct `find({query:{$limit,$skip}})` expects nested `query`; missing-record errors
-set `code:404`, not HTTP `status`.
-
-### JWT login and ACL (optional)
-
-uflite exports **`createAuth`** and **`createACL`** factories, not classes named
-`authService`/`ACLservice`. This is the small core of
-[example 06](examples/06-auth-jwt-acl/README.md); `adapter`, `baseURL`, `secret`
-and the request's `token` must come from trusted application wiring:
-
-```js
-import { jwt } from 'better-auth/plugins'
-import { createAuth } from 'uflite/services/auth'
-import { createACL } from 'uflite/services/acl'
-
-const auth = await createAuth({ adapter, baseURL, secret, extraPlugins: [jwt()] })
-const acl = createACL({ enabled: true, rules: [
-  { id: 'profile', permissions: ['member:profile:read'],
-    check: { 'user.id': { $exists: true } } }
-] })
-const { payload } = await auth.api.verifyJWT({ body: { token } })
-const allowed = !!payload?.sub &&
-  acl.can({ user: { id: payload.sub } }, 'member:profile:read')
-```
-
-Sign-up and login use Better Auth's real `/api/auth/*` endpoints. Login's
-`token` field is an **opaque session token, not a JWT**: an authenticated
-`GET /api/auth/token` with its session cookie issues the signed JWT. Protected
-requests can then send that JWT as `Authorization: Bearer ...`; verify its
-signature, issuer, audience and expiry server-side before ACL. Better Auth's
-optional `plugins: { bearer: true }` accepts a *session bearer token*, not the
-JWT demonstrated here. The static `bearerAuth({ token: 'demo-token' })` in
-example 05 is likewise not JWT verification. JWTs do not provide immediate
-session revocation; use short expiry and a revocation strategy as needed.
-
-### Local storage and optional S3
-
-```js
-import { createLocalStorageService } from 'uflite/services/localStorage' // no AWS SDK
-const local = createLocalStorageService({ basePath: './uploads', maxFileSize: 1024 * 1024 })
-// app.service('storage', local) // protect raw upload/download routes first
-
-// S3-compatible provider (install both @aws-sdk/client-s3 and @aws-sdk/s3-request-presigner):
-import { createStorageService } from 'uflite/services/storage'
-const s3 = createStorageService({ type: 's3', bucket: 'uploads', region: 'us-east-1',
-  endpoint: 'http://localhost:9000', // omit for AWS S3
-  accessKeyId: Bun.env.S3_ACCESS_KEY_ID, secretAccessKey: Bun.env.S3_SECRET_ACCESS_KEY })
-```
-
-Local storage's raw routes include `PUT /storage?key=folder/file.txt` and
-`GET /storage/download?key=folder/file.txt`. S3: `POST /storage/presign` with
-`{key,contentType}` returns a signed PUT URL and headers; `POST /storage/presign-download` with
-`{key}` signs a GET. Configure bucket CORS. Signed PUT does not enforce file size; local presign
-URLs are **not** authorization tokens. Restrict both HTTP and direct service access.
-[Example 04](examples/04-full-services/README.md) runs local storage by default.
-
-## API at a glance
-
-- **Nano:** `flite({ routes?, mode?, match? }?)` handles routes and raw values;
-  `fetch()` returns `undefined` on a miss.
-- **Lite:** add `before?`, `after?`, `error?` request hooks; a miss remains `undefined`
-  unless an after hook responds. No services.
-- **Full:** also accepts `format?` and `missing?`; formats JSON, returns a JSON 404 by
-  default, and provides services, in-process events and channels.
-
-Routes: `app.get/post/put/patch/delete/head/options/all(path, ...handlers)`,
-`app.use(path?, ...handlersOrRouters)` and `app.fetch(request, ...args)`. Mode 0 handlers
-receive `(request, ...adapterArgs)` and stop on a non-nullish result; mode 1 receives
-`(request, ...adapterArgs, next)` and requires `await next()` to continue.
-`json(body, options?)`, `text`, `html`, `error(code, message?)` and `new status(code, message?)`
-are exported from **full** `uflite`. Full's default error hook returns `err.message`, even for
-5xx.
-
-Full-only `app.service(name, implementation)` exposes standard
-`find/get/create/update/patch/remove` methods and auto-routes **only implemented** methods.
-Hooks are registered with `service.hooks({before?,after?,error?})` or `app.hooks(...)`. Service
-hook context, ordering, factory options, HTTP middleware signatures, all
-predicate/transformer/resolver exports, channel methods and package subpaths are in the
-**[complete API reference](#complete-api-reference)**. For hook recipes and error configuration,
-see [HOOK_SPEC](docs/HOOK_SPEC.md) and [REAL_WORLD_HOOKS](docs/REAL_WORLD_HOOKS.md).
-
-## Complete API reference
-
-The public entry points, signatures, options, and return behavior below are preserved here
-rather than being moved to another file. `?` means optional; `→` indicates a returned
-function or value. For declaration types see [`src/index.d.ts`](src/index.d.ts).
-Expand the relevant group as needed.
-
-<details>
-<summary>Core routes, response helpers and HTTP middleware</summary>
-
-### Entry points, routes and hooks
-
-- `uflite/nano`: `flite({ routes?, mode?: 0 | 1, match? }?)` returns raw values or
-  `undefined` (the declaration narrows this to Response).
-- `uflite/lite`: `flite({ routes?, mode?, match?, before?, after?, error? }?)` returns the
-  result after global request hooks, or `undefined`.
-- `uflite`: `flite({ routes?, mode?, match?, before?, after?, error?, format?, missing? }?)`
-  usually returns a Response, with default 404, formatting and error hook.
-
-Each entry point also exports **default `flite`**. `routes` can be supplied as the app's route
-array; nano exposes it on `app.routes` (lite/full inherit this property).
-
-```text
-app.get/post/put/patch/delete/head/options/all(path, ...handlers) → app
-app.GET/POST/PUT/PATCH/DELETE/HEAD/OPTIONS/ALL(path, ...handlers) → app
-app.use(handler | router) / app.use(path, ...handlersOrRouters) → app
-app.fetch(request: Request, ...adapterArgs) → Promise<result | undefined>
-app.routes → registered route tuples
-match({ method, path }) → { handlers, params? } | undefined
-run(mode?: 0 | 1)(...handlers)(...args) → Promise<result | undefined>  // full export
-```
-
-`before` / `after` / `error` are dictionaries keyed by `all` or a **lowercase HTTP method**.
-Their handlers are `(req, ...args)`, `(result, req, ...args)`, `(err, req, ...args)`. Lite/full
-request hooks run before.all → before.method → route → after.method → after.all; a thrown
-request error instead runs error.method → error.all. A before hook can return a value to skip
-routing; after hooks can transform a result or supply a response for a miss. In mode 1 each hook
-must call `next()` to run the next hook in that phase. Error hooks are request hooks, distinct
-from service-context error hooks. `format(result)` controls full auto-formatting (`false`
-disables it); `missing()` controls the full fallback. If custom full `error` hooks are supplied,
-they replace the default.
-
-When `match({method,path})` is supplied, nano bypasses its registered-route loop even if the
-custom matcher returns no handlers; lite/full fall back to registered routes if the matcher
-returns no handlers. Both return raw handler results unless full formatting is active.
-
-### Response helpers
-
-- `response(contentType?, transform?)(body, options?) → Response | undefined`:
-  configurable content type and body transform; defaults to text/plain.
-- `text(body, options?) → Response | undefined`: text content type.
-- `html(body, options?) → Response | undefined`: HTML content type.
-- `json(body, options?) → Response | undefined`: JSON stringify;
-  `json(undefined)` returns `undefined`.
-- `error(statusCode, messageOrObject?) → Response` or `error(err: Error) → Response`:
-  JSON `{status,error}` or object details.
-- `new status(code, message?, data?) → Error`: throw for status-aware handling.
-
-`options` accepts Fetch `ResponseInit` fields such as `status` and `headers`. Response helpers
-pass an existing **same-realm** `Response` through. Full defaults to
-`error(err.status || 500, err.message)`, **including 5xx messages**. Install an application
-error hook to redact internal errors.
-
-### HTTP middleware
-
-Request factories return `Middleware(request, next?) → Response | void | Promise<…>`; named
-companions are response-phase functions
-`(response, request, next?) → Response | Promise<Response>` for `after.all`. In mode 0, wrap
-optional-next middleware as `req => middleware(req)` if a Fetch host supplies extra arguments;
-otherwise it may mistake an environment/server value for `next` (see
-[example 05](examples/05-full-middleware-resolvers/index.js)).
-
-- `cors({origin?,methods?,credentials?,maxAge?,allowedHeaders?,exposedHeaders?}?)`:
-  origin can be a string, array or RegExp; response companion `corsAfter`.
-- `logger({format?,skip?}?)`: `format` is `dev`, `combined` or `json`;
-  `skip(req)` omits requests; response companion `loggerAfter`.
-- `rateLimit({windowMs?,max?,keyGenerator?,standardHeaders?}?)`: in-process,
-  use a trusted `keyGenerator(req)`; response companion `rateLimitAfter`.
-- `bearerAuth({token?,verify?,realm?}?)`: static token or sync/async `verify(token)`.
-- `basicAuth({users,realm?})`: username→password record.
-- `bodyLimit({max?}?)`: byte count or size string such as `'10mb'`.
-- `secureHeaders({contentSecurityPolicy?,xFrameOptions?,strictTransportSecurity?,
-  xContentTypeOptions?,referrerPolicy?}?)`: response companion `secureHeadersAfter`.
-- `requestId({header?,generator?}?)`: response companion `requestIdAfter`.
-
-`rateLimit` uses one `unknown` bucket by default rather than trusting forwarded headers; use a
-trusted key and shared store for multi-instance deployments. `bodyLimit` counts streamed bytes
-from a cloned request; use an upstream connection/body cap too.
-
-</details>
-
-<details>
-<summary>Service registry and optional service factories</summary>
-
-### Service registry
-
-```text
-app.service(name: string, implementation) → ServiceWrapper
-app.service(name: string) → ServiceWrapper                 // lookup; throws if missing
-app.hooks({ before?, after?, error? }) → app              // global SERVICE hooks
-app.teardown() → app                                      // does not await cleanup
-service.hooks({ before?, after?, error? }) → service
-service.on('created'|'updated'|'patched'|'removed', handler) → service
-service.setup(...args) / service.teardown(...args) → Promise<void>
-service.find(params?) / service.get(id, params?)
-service.create(data, params?) / service.update(id, data, params?)
-service.patch(id, data, params?) / service.remove(id, params?) → Promise<result>
-```
-
-`implementation` can define those standard methods, custom functions, `setup(app,name)` and
-`teardown(app,name)`. Hooks use `all` and/or method names (`find`, `get`, `create`, `update`,
-`patch`, `remove`, custom). The wrapper exposes standard method functions even when the
-implementation omits one, but **registers an HTTP route only when that method is implemented**.
-Service `setup` runs on registration and `app.teardown()` calls teardown without awaiting
-asynchronous work.
-
-**Successful service call order:** app.before.all → app.before.method → service.before.all →
-service.before.method → implementation → service.after.method → service.after.all →
-app.after.method → app.after.all → mutation event. In mode 0 hooks advance automatically; in
-mode 1 a hook must call `next()` for subsequent hooks to run. Only an *implementation* exception
-enters service.error.method → service.error.all → app.error.method → app.error.all; after those
-hooks complete, the original error is rethrown (unless an error hook throws a replacement).
-Before-hook, after-hook, and event-listener exceptions do not enter service error hooks. A REST
-request may separately reach the router's request-level error hook. Service error hooks
-observe/log; setting `context.result` there does not turn failure into success.
-
-Auto-REST passes the **flat** request query as params. DBService direct `find` expects
-`params.query` for pagination; add a mapping layer if you require `$limit` via HTTP.
-
-Generated POST and DELETE routes return `json(result)` (normally HTTP **200** when a value
-is returned), not automatic 201/204. Missing DB records use `code:404`, not HTTP `status:404`;
-the default full error handler can therefore return 500. For conventional 201/204 and 404,
-use explicit routes or map the errors/statuses in your application; do not claim flat HTTP
-`$limit` query params paginate a DBService list.
-
-### Built-in service factories
-
-- **DB · `uflite/services/db`:**
-  `createDBService(getCollection?, {idField?,paginate?:{default,max},multi?,initialData?}?)`.
-  Install `umosql@0.3.1`.
-- **Table · `uflite/services/table`:** `createTableService(dbAdapter)`; supply an
-  adapter with table/DDL operations.
-- **Local storage · `uflite/services/localStorage`:**
-  `createLocalStorageService({basePath?,publicUrl?,maxFileSize?}?)`; no AWS SDK.
-- **Storage · `uflite/services/storage`:** `createStorageService(options?)`, alias
-  `createStorage`. Options: `type?: 'local' | 's3'`, `basePath?`, `publicUrl?`,
-  `maxFileSize?`, `bucket?`, `region?`, `accessKeyId?`, `secretAccessKey?`,
-  `sessionToken?`, `endpoint?`, `forcePathStyle?`, `uploadExpiresIn?`,
-  `downloadExpiresIn?`, `client?`, `presign?`. Install both AWS SDK packages,
-  including for local mode.
-- **Auth · `uflite/services/auth`:** `await createAuth(options)` requires
-  `adapter`, `baseURL` and `secret`. Optional: `trustedOrigins?`,
-  `emailAndPassword?`, `secondaryStorage?`, `logger?`, `adapterConfig?`,
-  `plugins?`, `extraPlugins?` and other Better Auth options. Install
-  `better-auth` and supply an adapter (e.g. UMOSQL).
-- **Auth adapter · `uflite/services/auth`:** `sqlAdapterFactory(base, config?)`
-  returns a Better Auth adapter factory; requires Better Auth and an adapter.
-- **ACL · `uflite/services/acl`:**
-  `createACL({enabled:boolean,rules:[{id,name?,permissions:['role:resource:method'],check?}]})`
-  returns `{can(context,permission)}`. Install `uqry`.
-
-`createAuth`, `createACL` and `createLocalStorageService` are also the **default exports** of
-their individual subpaths. `uflite/services` re-exports the DB, table and storage factories
-(**not** Auth/ACL/localStorage) and eagerly loads UMOSQL and AWS; prefer subpaths.
-`createDBService()` creates an isolated in-memory collection (default page size 10, maximum
-100). Direct `find({query:{$limit?,$skip?,$select?,$sort?},paginate?})` returns
-`{total,limit,skip,data}`; `$limit` is clamped to the configured maximum, `$limit:0` preserves
-`total` with empty `data`, and `paginate:false` returns an unpaginated array. DBService
-not-found exceptions from `get` and ID-based mutations have `code:404` but **not** HTTP
-`status:404`; a default full-app HTTP response can therefore be 500. `createTableService`
-implements `find/get/create/patch/remove` for authorized schema changes. Both storage backends
-offer `find/get/create/remove` and `presignUpload/presignDownload`; **only local storage**
-implements `upload/download` and raw PUT/download routes. S3 upload/download bytes go directly
-to the provider via presigned URLs. Local upload/download HTTP routes must be protected by a
-request guard (local raw download does not pass the Request into its service-hook parameters);
-local presign links are **not** signed authorization tokens. S3 presigned PUT cannot enforce
-file size. [Example 04](examples/04-full-services/index.js) runs real Auth + ACL + DBService +
-StorageService.
-
-</details>
-
-<details>
-<summary>Generic service hook signatures</summary>
-
-### Generic service hooks
-
-Every factory returns `(context, next?) → value | Promise<value>`, **not** a request middleware.
-`HookErrorOptions` is
-`{error?: {status?,message?,code?}, errors?: {reason: {status?,message?,code?}}}`.
-`options.target` usually defaults to `data`, `result` or `params.query` as indicated; it is
-**not** a raw HTTP field. Full argument signatures, grouped for scanning:
-
-The typed signatures below include **flow** (`iff`, `unless`, `throwIf`, `disallow`),
-**data/query** validation and transforms, **auth/result** policies, and **lifecycle** helpers
-(`auditFields`, `publishEvent`, `sideEffect`, `debug`). None runs automatically.
-
-**Full typed hook signatures** (public declaration shapes, included here so the README stands alone):
-
-```ts
-export type UfliteContext = {
-  app?: unknown;
-  service?: unknown;
-  method?: string;
-  path?: string;
-  id?: unknown;
-  data?: unknown;
-  result?: unknown;
-  params?: Record<string, any>;
-  [key: string]: any;
-};
-export type Hook = (context: UfliteContext, next?: (error?: unknown) => unknown) => unknown | Promise<unknown>;
-export type Predicate<T = any> = (value: T, ...args: any[]) => boolean | Promise<boolean>;
-export type Transformer<T = any, R = any> = (value: T, ...args: any[]) => R | Promise<R>;
-export type FieldResolver = (value: any, object: Record<string, any>, context?: any) => any | Promise<any>;
-export type HookErrorConfig = {
-  message?: string | ((context: UfliteContext, details?: Record<string, any>) => string | Promise<string>);
-  status?: number;
-  code?: string;
-};
-export type HookErrorOptions = {
-  /** Shared error defaults. */
-  error?: HookErrorConfig;
-  /** Per-failure overrides for hooks with distinct failure reasons. */
-  errors?: Record<string, HookErrorConfig>;
-};
-
-export function iff(predicate: Predicate<UfliteContext>, ...hooks: Hook[]): Hook;
-export function unless(predicate: Predicate<UfliteContext>, ...hooks: Hook[]): Hook;
-export function throwIf(predicate: Predicate<UfliteContext>, options?: HookErrorOptions): Hook;
-export function disallow(options?: HookErrorOptions): Hook;
-export function setData(value: any | ((context: UfliteContext) => any)): Hook;
-export function setResult(value: any | ((context: UfliteContext) => any)): Hook;
-export function requireFields(fields: string[],
-  options?: { target?: string; allowEmpty?: boolean } & HookErrorOptions): Hook;
-export function setDefaults(defaults: Record<string, any> | ((context: UfliteContext) => any),
-  options?: { target?: string }): Hook;
-export function setField(field: string, value: any | ((context: UfliteContext) => any),
-  options?: { target?: string }): Hook;
-export function preventChanges(fields: string[],
-  options?: { target?: string; original?: (context: UfliteContext) => any } & HookErrorOptions): Hook;
-export function removeFields(fields: string[], options?: { target?: string }): Hook;
-export function pickDataFields(fields: string[], options?: { target?: string }): Hook;
-export function validateData(validator: Transformer, options?: { target?: string } & HookErrorOptions): Hook;
-export function transformData(transform: Transformer, options?: { target?: string }): Hook;
-export function preventEmptyData(options?: { target?: string } & HookErrorOptions): Hook;
-export function setQueryDefaults(defaults: Record<string, any> | Function, options?: { target?: string }): Hook;
-export function pickQueryFields(fields: string[], options?: { target?: string }): Hook;
-export function transformQuery(transform: Transformer, options?: { target?: string }): Hook;
-export function requireAuth(options?: HookErrorOptions & { getUser?: (context: UfliteContext) => any }): Hook;
-export function requireRole(roles: string | string[],
-  options?: HookErrorOptions & { getUser?: (context: UfliteContext) => any; roleField?: string }): Hook;
-export function requirePermission(permissions: string | string[],
-  options?: HookErrorOptions & { getPermissions?: (context: UfliteContext) => any;
-    match?: 'any' | 'all' }): Hook;
-export function requireOwner(options?: HookErrorOptions & { ownerField?: string;
-    getActor?: (context: UfliteContext) => any; getRecord?: (context: UfliteContext) => any }): Hook;
-export function scopeToActor(options?: HookErrorOptions & { field?: string;
-    getActor?: (context: UfliteContext) => any; getQuery?: (context: UfliteContext) => any }): Hook;
-export function requireMethod(methods: string | string[], options?: HookErrorOptions): Hook;
-export function rateLimit(consume: Function,
-  options?: HookErrorOptions & { key?: Function; limit?: number; windowMs?: number }): Hook;
-export function transformResult(transform: Transformer, options?: { target?: string }): Hook;
-export function pickResultFields(fields: string[], options?: { target?: string }): Hook;
-export function omitResultFields(fields: string[], options?: { target?: string }): Hook;
-export function mapResult(mapper: Transformer): Hook;
-export function auditFields(options?: Record<string, any>): Hook;
-export function publishEvent(publish: Function, eventName: string, options?: Record<string, any>): Hook;
-export function sideEffect(effect: Function, options?: Record<string, any>): Hook;
-export function debug(logger?: any, options?: Record<string, any>): Hook;
-```
-
-`uflite/hooks/flow`, `/data`, `/auth`, `/lifecycle`, `/result` re-export the respective columns.
-`rateLimit(consume, options?)` here is a **service hook**, unlike HTTP `rateLimit(options?)`.
-Hooks can mutate `context.data` or `context.result`;
-[example 05](examples/05-full-middleware-resolvers/index.js) uses `requireFields` +
-`transformData`. For longer worked recipes see [HOOK_SPEC.md](docs/HOOK_SPEC.md) and
-[REAL_WORLD_HOOKS.md](docs/REAL_WORLD_HOOKS.md).
-
-</details>
-
-<details>
-<summary>Predicates, transformers and field resolvers</summary>
-
-### Predicates
-
-Direct predicates return booleans; curried predicates return `(value) → boolean`. `all`, `any`,
-`not`, `when` and `contextPredicate` can be asynchronous. Nothing here automatically attaches to
-a route.
-
-| Values & types | Comparison & sets | Paths & composition |
-| :--- | :--- | :--- |
-| `isPresent(value)` | `equals(expected)(value)` | `hasPath(path)(object)` |
-| `isNil(value)` | `notEquals(expected)(value)` | `pathEquals(path,expected)(object)` |
-| `isDefined(value)` | `oneOf(values)(value)` | `pathMatches(path,predicate)(object)` |
-| `isEmpty(value)` | `includes(expected)(value)` | `all(...predicates)(value)` |
-| `isString(value)` | `matches(pattern,flags?)(value)` | `any(...predicates)(value)` |
-| `isNumber(value)` | `greaterThan(threshold)(value)` | `not(predicate)(value)` |
-| `isInteger(value)` | `atLeast(threshold)(value)` | `when(predicate,yes,no?)(value)` |
-| `isBoolean(value)` | `lessThan(threshold)(value)` | `contextPredicate(predicate,{select?}?)(context)` |
-| `isArray(value)` | `atMost(threshold)(value)` | |
-| `isObject(value)` | `between(min,max,{inclusive?}?)(value)` | |
-| `isPlainObject(value)` | `lengthAtLeast(length)(value)` | |
-| `isNonEmptyString(value)` | `lengthAtMost(length)(value)` | |
-| `isEmail(value)` | `hasAny(values)(value)` | |
-| `isURL(value)` | `hasAll(values)(value)` | |
-| `isUUID(value)` | `truthy(value)` | |
-| | `falsy(value)` | |
-
-### Transformers
-
-Transformers return new values rather than mutating input objects; `compose`, `pipe`,
-`mapFields`, `setDefaults`, `mapArray` and `updatePath` may be async. The `setDefaults` name
-here is a **value transformer**, not the service hook of the same name.
-
-**Direct value functions:** `identity`, `trimString`, `lowercase`, `uppercase`,
-`normalizeEmail`, `normalizeWhitespace`, `slugify`, `toNumber(value,{strict?}?)`,
-`toInteger(value,{strict?}?)`, `parseJSON(value,{strict?}?)`, `toBoolean(value,{strict?}?)`.
-The others each take one value.
-
-**Factories returning value transformers:** `compose(...transformers)` (`pipe` alias),
-`pick(keys)`, `omit(keys)`, `renameFields(mapping)`, `mapFields(mapping)`,
-`trimStrings({fields?,recursive?}?)`,
-`removeEmpty({removeNull?,removeEmptyStrings?,removeEmptyArrays?,removeEmptyObjects?}?)`,
-`setDefaults(defaults)`, `mapArray(transformer)`, `updatePath(path,transformer)`.
-Call a returned transformer with `(value)`.
-
-### Field resolvers
-
-Each factory returns a field resolver `(current, object, context?) → value | Promise<value>`.
-Call it yourself in a route or service hook (or pass to your own mapping layer); these helpers
-do **not** implement `uresolver.resolve` or `virtual`.
-
-| Read / lookup | Decide / redact | Arrays / aggregate |
-| :--- | :--- | :--- |
-| `value()` | `resolveIf(predicate,resolver,{otherwise?}?)` | `mapArray(resolver)` |
-| `fromPath(path,{fallback?}?)` | `omitIf(predicate)` | `relationMany(fetchMany,{key?}?)` |
-| `fromContext(path,{fallback?}?)` | `redactIf(predicate,replacement?)` | `join(separator?)` |
-| `fallback(defaultValue)` | `mapValue(mapper)` | `count()` |
-| `lookup(fetchOne,{key?,fallback?}?)` | `relation(fetchOne,{key?,fallback?}?)` | `sum()` |
-| | | `pluck(field)` |
-
-```js
-import { fromPath } from 'uflite/resolvers'
-import { trimStrings } from 'uflite/transformers'
-import { isNonEmptyString } from 'uflite/predicates'
-
-const cleaned = trimStrings({ fields: ['name'] })({ name: '  Ada  ' })
-const valid = isNonEmptyString(cleaned.name) // true
-const label = fromPath('profile.name', { fallback: 'Anonymous' })(null, { profile: cleaned })
-```
-
-</details>
-
-<details>
-<summary>Events, channels and remaining exports</summary>
-
-### Events, channels and other exports
-
-- Full `uflite` events: `app.on(event, fn) → app`, `app.off(event, fn) → app`,
-  `app.emit(event, ...args) → app`; synchronous and local to this process.
-- Channels: `app.channel(name) → channel`; a local connection set, **not** a socket server.
-  `channel.join(conn, data?) → channel`, `channel.leave(conn) → channel`;
-  your `conn` supplies `send(string)`.
-- Delivery: `channel.send(event,data) → channel` sends JSON `{event,data}`;
-  `channel.filter(fn).send(event,data)` filters on `(connectionData,eventData)`.
-- `uflite/utils`: `isObject(value) → boolean` (also exported via predicates).
-- Full `uflite`: `predicates`, `transformers`, `resolvers` namespace exports.
-- `uflite/package.json`: exported package metadata JSON subpath.
-
-```js
-import { flite } from 'uflite'
-const app = flite()
-app.on('ready', count => console.log(count)).emit('ready', 1)
-const socket = { send: message => console.log(message) } // replace with a real connection
-app.channel('updates').join(socket, { room: 'demo' })
-app.channel('updates').filter(meta => meta.room === 'demo').send('created', { id: 1 })
-app.channel('updates').leave(socket)
-```
-
-</details>
+Request hooks operate on the HTTP request/response flow. They are different from service hooks,
+which receive a mutable service context and are described next.
 
 ## Custom matchers
 
-<details>
-<summary>Optional custom matchers (Hono normalization)</summary>
+Use `flite({ match })` when you want to keep uflite's handler execution and hooks but supply your
+own path-matching logic. The callback receives only `{ method, path }` and returns either
+`{ handlers, params? }` or no match. `params` is copied to `request.params`; each handler receives
+the request first. No external router is required.
 
-`flite({ match: ({method,path}) => ({handlers,params?}) })` lets you use another matcher without
-replacing uflite's hook runner. **No external router is necessary**; the built-in matcher is the
-default. Hono's PatternRouter is one optional example (install `hono` yourself):
+### 1. A small custom matcher with path parameters
+
+```js
+import { flite, json } from 'uflite'
+
+const match = ({ method, path }) => {
+  if (method === 'GET' && path === '/health') {
+    return { handlers: [() => json({ ok: true })] }
+  }
+
+  const user = method === 'GET' && /^\/users\/([^/]+)$/.exec(path)
+  if (user) {
+    return {
+      params: { id: decodeURIComponent(user[1]) },
+      handlers: [request => json({ id: request.params.id })]
+    }
+  }
+
+  return undefined
+}
+
+const app = flite({ match })
+export default app
+```
+
+Test directly without opening a port:
+
+```js
+const response = await app.fetch(new Request('https://example.test/users/42'))
+console.log(await response.json()) // { id: '42' }
+```
+
+**Important fallback difference:** nano bypasses its registered-route loop whenever `match` is set—even
+when the custom matcher returns no handlers. Lite and full fall back to registered routes when the
+custom matcher has no handlers. Keep all routing in the custom matcher when using nano, or choose
+lite/full if you intentionally want fallback routes.
+
+### 2. Adapt a Hono router matcher
+
+This example uses Hono's `PatternRouter` as the matcher only; it does **not** run Hono as the HTTP
+server. Hono is an optional dependency in your application:
+
+```sh
+bun add hono
+```
 
 ```js
 import { PatternRouter } from 'hono/router/pattern-router'
-import { flite } from 'uflite'
+import { flite, json } from 'uflite'
+
 const external = new PatternRouter()
-external.add('GET', '/users/:id', req => ({ id: req.params.id }))
-const router = flite({ match: ({ method, path }) => {
+external.add('GET', '/users/:id', request => json({ id: request.params.id }))
+
+const match = ({ method, path }) => {
   const [matches, stash = []] = external.match(method, path)
-  if (!matches.length) return null
-  return { handlers: matches.map(([handler, params = {}]) => req => {
-    req.params = Object.fromEntries(Object.entries(params).map(([key, value]) =>
-      [key, typeof value === 'number' ? stash[value] : value]))
-    return handler(req)
-  }) }
-} })
-export default router // full formats the matcher result and supplies a 404
+  if (!matches.length) return undefined
+
+  return {
+    handlers: matches.map(([handler, paramMap = {}]) => request => {
+      request.params = Object.fromEntries(Object.entries(paramMap).map(([key, value]) => [
+        key, typeof value === 'number' ? stash[value] : value
+      ]))
+      return handler(request)
+    })
+  }
+}
+
+const app = flite({ match })
+export default app
 ```
 
-This normalization is verified for Hono 4's PatternRouter, RegExpRouter and TrieRouter in
-[matcher tests](tests/hono-router.spec.js); their internal match shapes may change with Hono
-versions. `trouter`/`itty-router` can also be adapted to the same `{handlers,params?}` contract.
-The `match` option does **not** make Hono a dependency.
+The repository tests the same normalization approach against Hono's `PatternRouter`, `RegExpRouter`,
+and `TrieRouter`. Hono's matcher result shape is an integration detail; pin/test your Hono version
+when depending on it. The built-in uflite matcher remains the default and has no Hono dependency.
 
-</details>
+### Browser routing
 
-## Browser SPA and React routing
+`uflite/nano` can also match browser URLs for a client-side SPA, but that is distinct from server-side
+HTTP handling. Bundle the browser entry with Vite/Bun or use an import map, and render untrusted
+route parameters with `textContent`, not `innerHTML`. The repository includes vanilla SPA, React SPA,
+service-worker, and middleware samples; these are examples, not server-runtime adapters.
 
-<details>
-<summary>Browser SPA and React recipes</summary>
 
-Client-side routing is **not** server-side rendering or a Fetch HTTP server. Use a bundler
-(Vite, Bun build, etc.) or an import map to resolve bare `uflite/...` imports in the browser.
-These are small `main.js` examples, not untested copy-paste raw `<script>` imports.
 
-**Vanilla browser SPA:** nano can return data rather than a Response. Render untrusted route
-params with `textContent`, not `innerHTML`.
+## Fetch runtimes and server adapters
+
+uflite exposes `app.fetch(request, ...args)` and uses the Web `Request`/`Response` API. The router is
+not an HTTP listener. Bun, Deno, and Cloudflare Workers provide a Fetch host directly. For Node.js,
+use a host such as Hono with `@hono/node-server`, or another Fetch-compatible adapter you choose.
+
+### Hono adapter: forward requests into uflite
+
+If your application already uses Hono, register a catch-all bridge and let uflite handle those
+requests. This is a small adapter pattern, **not** a separate package exported by uflite.
+
+```sh
+bun add uflite hono
+```
 
 ```js
-// main.js, bundled for a page containing <div id="root"></div>
-import { flite } from 'uflite/nano'
-const router = flite()
-router.get('/', () => ({ title: 'Home' }))
-router.get('/user/:id', req => ({ title: 'User ' + req.params.id }))
-const root = document.querySelector('#root')
-async function render() {
-  const view = await router.fetch(new Request(location.href))
-  const heading = document.createElement('h1')
-  heading.textContent = view?.title ?? 'Not found'
-  const link = document.createElement('a')
-  link.href = location.pathname === '/' ? '/user/42' : '/'
-  link.textContent = location.pathname === '/' ? 'Go to user' : 'Home'
-  root.replaceChildren(heading, link)
-}
-document.addEventListener('click', event => {
-  const a = event.target.closest('a')
-  if (!a || a.origin !== location.origin || event.defaultPrevented || event.button !== 0 ||
-      event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
-  event.preventDefault()
-  history.pushState(null, '', a.href)
-  render()
-})
-window.addEventListener('popstate', render)
-render()
-```
-
-**React SPA:** install `react` and `react-dom` in *your app*
-(`npm install uflite react react-dom`) and bundle `main.jsx`. Create the React root **once**,
-not on every navigation.
-
-```jsx
-import React from 'react'
-import { createRoot } from 'react-dom/client'
-import { flite } from 'uflite/nano'
-const router = flite()
-router.get('/', () => ({ title: 'Home', next: '/user/42' }))
-router.get('/user/:id', req => ({ title: `User ${req.params.id}`, next: '/' }))
-const root = createRoot(document.getElementById('root'))
-const go = path => { history.pushState(null, '', path); render() }
-async function render() {
-  const view = await router.fetch(new Request(location.href))
-  root.render(<main><h1>{view?.title ?? 'Not found'}</h1>
-    <a href={view?.next ?? '/'} onClick={event => {
-      event.preventDefault(); go(event.currentTarget.getAttribute('href'))
-    }}>Navigate</a></main>)
-}
-window.addEventListener('popstate', render)
-render()
-```
-
-Browser examples are illustrative, not part of the HTTP smoke test. Existing repository samples:
-[vanilla](examples/browser-spa.js), [React](examples/browser-react.js),
-[service worker](examples/service-worker.js), and [middleware](examples/example.middleware.js).
-
-</details>
-
-## Fetch runtimes and optional integrations
-
-The exported Fetch handler **is enough** for Workers; Bun and Deno can call it directly. Only
-the Bun projects are HTTP-smoke-tested in this repository. No HTTP adapter belongs to the core
-package:
-
-- **Cloudflare Workers:** export a full app as the default Fetch handler, or use the
-  [introductory nano pattern](#nano-fetch-wrappers-and-error-policy). Bundle your code.
-- **Bun:** the [one-file quick start](#quick-start) uses CLI auto-serving; the five
-  original projects call `Bun.serve({fetch: request => handler.fetch(request),port:3000})`.
-- **Deno:** import from `npm:uflite`, then
-  `Deno.serve(request => handler.fetch(request))`.
-- **Hono composition (optional):** `hono.all('*', c => handler.fetch(c.req.raw))`;
-  install `hono` in **your** app.
-- **Node:** supply a Fetch-compatible server/adapter in **your** application.
-
-**Hono is an optional combination**, not the uflite server and not part of any quickstart. If
-your app *already uses Hono*, you can forward its raw Request:
-
-```js
-// Only for apps that choose Hono (npm install hono).
+// app.js
 import { Hono } from 'hono'
 import { flite } from 'uflite'
-const router = flite()
-router.get('/hello', () => ({ hello: 'uflite' }))
+
+const api = flite()
+api.get('/api/hello/:name', request => ({ hello: request.params.name }))
+
 const hono = new Hono()
-hono.all('*', c => router.fetch(c.req.raw))
+// Register Hono-specific routes before this catch-all if you want Hono to handle some paths.
+hono.all('*', context => api.fetch(context.req.raw))
+
 export default hono
 ```
 
-Hono on Node may itself use `@hono/node-server`, but that is **Hono/Node application wiring**,
-never a uflite requirement. For mode 1, be careful when a host passes extra `fetch` arguments:
-`next` is last. The full formatter uses `instanceof Response`; with a foreign Response
-implementation it can serialize a Response to `{}`. Only use `flite({format:false})` when routes
-already return Responses, and test the host you deploy.
+The raw Hono `Request` preserves the URL, headers, and body for uflite. The full uflite entry formats
+plain route values as JSON. If the app uses nano/lite, add your own response/error wrapper because
+those entries do not auto-format plain values.
 
-## Testing, security and license
+### Node.js with `@hono/node-server`
 
-```bash
-bun install --frozen-lockfile
-bun run build          # dist is required before package/example checks
-bun test               # unit/integration tests
-bun run test:types     # public NodeNext declarations + middleware
-bun run test:package   # packed ESM, CommonJS, TypeScript consumers
-bun run test:examples  # installs/starts six Bun projects; tests success and error HTTP flows
-bun run bench:size     # reproduce the size table for this toolchain
+This starts the Hono app above on Node.js. `@hono/node-server` belongs to the host application; it
+is not a uflite dependency.
+
+```sh
+npm install uflite hono @hono/node-server
 ```
 
-A tiny `bun:test` example, using the Fetch handler without starting a server:
-
 ```js
-import { test, expect } from 'bun:test'
-import { flite, json } from 'uflite'
-test('GET /users/:id', async () => {
-  const router = flite().get('/users/:id', req => json({ id: req.params.id }))
-  const response = await router.fetch(new Request('https://example.test/users/42'))
-  expect(response.status).toBe(200)
-  expect(await response.json()).toEqual({ id: '42' })
+// server.js (Node.js ESM)
+import { serve } from '@hono/node-server'
+import hono from './app.js'
+
+serve({
+  fetch: hono.fetch,
+  port: Number(process.env.PORT || 3000),
+  hostname: '0.0.0.0'
 })
 ```
 
-> [!WARNING]
-> **Production defaults are intentionally small, not a security policy.** Full's default error
-> hook includes `err.message` even for 5xx; install an error hook that redacts internal details.
-> The compact compiler interprets regex punctuation in paths. Generated service REST endpoints
-> need authentication and authorization. Never trust user-controlled query params as an
-> authenticated identity.
+Run `node server.js`, then request `http://localhost:3000/api/hello/Ada`. To use uflite directly
+without Hono on Node, choose a Node HTTP-to-Fetch adapter; uflite intentionally does not ship its
+own Node listener.
 
-- **Database:** an in-memory DBService is not durable; missing records have `code:404` but not
-  HTTP `status:404`. REST queries are flat, so `$limit` is not automatically nested for
-  DBService pagination.
-- **Storage:** local URLs are not authorization tokens. Keep a trusted, private directory;
-  protect raw upload/download routes. For S3 configure provider credentials/CORS and understand
-  that signed PUT does not enforce upload size.
-- **Rate/body limits:** process-local rate limiting needs a trusted key and shared/upstream
-  enforcement for multiple instances; body limits need an upstream transport cap.
-- **Runtime gaps:** persistent DB, S3 provider, Workers, Deno and browser UI were not deployed
-  in these tests. See the [production follow-up](PRODUCTION_READINESS_REVIEW.md).
-- **Contributing:** add regression tests for behavior changes, run the commands above and review
-  optional-integration imports. File defects in
-  [GitHub issues](https://github.com/kethan/uflite/issues).
-- **Maintainer & license:** package metadata names [Kethan Surana](https://github.com/kethan)
-  and declares **ISC**. A matching top-level license file still needs maintainer confirmation;
-  third-party license texts are under [`licenses/`](licenses/).
-- **Acknowledgments:** inspired by [itty-router](https://github.com/kwhitley/itty-router)
-  (routing), [Hono](https://hono.dev) (middleware ideas) and
-  [FeathersJS](https://feathersjs.com) (services). Inspiration is not a runtime dependency.
+### Deno
+
+Deno provides `Deno.serve`, so no Hono or Node adapter is needed:
+
+```js
+// main.js
+import { flite } from 'npm:uflite'
+
+const app = flite()
+app.get('/hello', () => ({ hello: 'Deno' }))
+
+Deno.serve(request => app.fetch(request))
+```
+
+Run `deno run --allow-net main.js`, then request `http://localhost:8000/hello`.
+
+### Cloudflare Workers
+
+Export the Fetch handler from the Worker module. Build/bundle the Worker with your usual Wrangler
+workflow; do not start a local server inside the Worker.
+
+```js
+// src/index.js
+import { flite } from 'uflite'
+
+const app = flite()
+app.get('/hello/:name', request => ({ hello: request.params.name }))
+
+export default {
+  fetch(request, env, ctx) {
+    // Forward env/ctx as optional adapter arguments if your handlers use them.
+    return app.fetch(request, env, ctx)
+  }
+}
+```
+
+Example `wrangler.toml`:
+
+```toml
+name = "uflite-worker"
+main = "src/index.js"
+compatibility_date = "2026-10-13"
+```
+
+### Bun
+
+```js
+import app from './app.js'
+
+Bun.serve({
+  port: Number(Bun.env.PORT || 3000),
+  fetch: request => app.fetch(request)
+})
+```
+
+### Runtime notes
+
+- The full entry's formatter checks `result instanceof Response`. Prefer the runtime's standard Web
+  `Response`; if using a foreign `Response` implementation, test it or use `flite({ format: false })`
+  only when every route already returns a compatible `Response`.
+- `app.fetch(request, ...args)` forwards extra host arguments to route handlers. In mode 1, uflite's
+  `next` callback is appended **after** those arguments.
+- The repository's local HTTP example suite uses Bun. The Deno, Worker, Hono, and Node snippets above
+  are source-based integration examples; validate them in the deployment environment and pin adapter
+  versions for production.
+
+
+## Core API at a glance
+
+### Router and response APIs
+
+```js
+import { flite, response, text, html, json, error, status, run } from 'uflite'
+```
+
+- `flite(config?)` creates the full app. The `uflite/lite` and `uflite/nano` subpaths export
+  their own smaller `flite` constructors.
+- `app.get/post/put/patch/delete/head/options/all(path, ...handlers)` registers a route.
+  Uppercase aliases are also available.
+- `app.use(handlerOrRouter)` or `app.use(path, ...handlersOrRouters)` adds middleware or mounts
+  a child router.
+- `app.fetch(request, ...adapterArgs)` dispatches a Fetch request.
+- `app.routes` exposes registered route tuples.
+- `json`, `text`, `html`, and `response` create `Response` values; `error` creates an HTTP error
+  response; `new status(code, message?, data?)` creates an error carrying an HTTP status.
+- `run(mode?)(...handlers)(...args)` is exported by the full entry for handler-chain execution.
+
+### Service APIs
+
+```text
+app.service(name, implementation) → ServiceWrapper
+app.service(name)                  → registered ServiceWrapper
+app.hooks({ before?, after?, error? }) → app
+app.teardown()                     → app
+
+service.hooks({ before?, after?, error? }) → service
+service.on(event, listener)         → service
+service.setup(...args)              → Promise<void>
+service.teardown(...args)           → Promise<void>
+
+service.find(params?)
+service.get(id, params?)
+service.create(data, params?)
+service.update(id, data, params?)
+service.patch(id, data, params?)
+service.remove(id, params?)
+```
+
+A service implementation can also expose custom methods. They are available on the wrapper and
+can have service hooks, but do not receive generated REST routes unless you register those routes.
+
+For exact type declarations, optional factory arguments, and less common behavior, the repository
+includes `docs/API_REFERENCE.md`, `docs/HOOK_SPEC.md`, and `docs/REAL_WORLD_HOOKS.md`. This README
+documents the main feature set and everyday usage directly so you can start without opening them.
+
+
+
+## Feathers-like service layer
+
+The full `uflite` entry includes a service registry inspired by the Feathers service model. A
+service is an object of methods that operate on application data. Register it once and uflite can
+expose its standard methods as REST endpoints, while the same methods remain callable directly
+from application code.
+
+This gives you a reusable application layer instead of implementing CRUD twice—once for HTTP
+and again for internal calls.
+
+### Register a service
+
+```js
+import { flite, status } from 'uflite'
+
+const app = flite()
+const records = new Map()
+let nextId = 1
+
+const tasks = app.service('tasks', {
+  async find(params = {}) {
+    return [...records.values()]
+  },
+
+  async get(id, params = {}) {
+    const task = records.get(String(id))
+    if (!task) throw new status(404, 'Task not found')
+    return task
+  },
+
+  async create(data, params = {}) {
+    const task = {
+      id: String(nextId++),
+      title: data.title,
+      done: false
+    }
+    records.set(task.id, task)
+    return task
+  },
+
+  async update(id, data, params = {}) {
+    if (!records.has(String(id))) throw new status(404, 'Task not found')
+    const task = { id: String(id), title: data.title, done: data.done }
+    records.set(task.id, task)
+    return task
+  },
+
+  async patch(id, data, params = {}) {
+    const current = await this.get(id, params)
+    const task = { ...current, ...data }
+    records.set(String(id), task)
+    return task
+  },
+
+  async remove(id, params = {}) {
+    const task = await this.get(id, params)
+    records.delete(String(id))
+    return task
+  },
+
+  // Custom methods are callable from code but are not automatically REST routes.
+  async count() {
+    return records.size
+  }
+})
+
+export default app
+```
+
+The wrapper follows a Feathers-inspired method shape: `find(params)`, `get(id, params)`,
+`create(data, params)`, `update(id, data, params)`, `patch(id, data, params)`, and
+`remove(id, params)`. The service wrapper normalizes those call signatures for both direct and
+HTTP use. It also accepts custom implementation methods.
+
+The service wrapper supports direct method calls as well as REST access:
+
+```js
+const allTasks = await tasks.find()
+const oneTask = await tasks.get('1')
+const created = await tasks.create({ title: 'Write the API' })
+const updated = await tasks.patch(created.id, { done: true })
+const removed = await tasks.remove(created.id)
+const total = await tasks.count()
+```
+
+The sample is deliberately in-memory and does not validate inputs; add validation hooks and
+persistent storage before using it for real data. The `DBService` section shows the built-in
+database-backed service.
+
+### Automatic REST routes
+
+Only standard methods implemented by a registered service are exposed as routes:
+
+| Service method | HTTP method | Route |
+| --- | --- | --- |
+| `find(params)` | `GET` | `/tasks` |
+| `get(id, params)` | `GET` | `/tasks/:id` |
+| `create(data, params)` | `POST` | `/tasks` |
+| `update(id, data, params)` | `PUT` | `/tasks/:id` |
+| `patch(id, data, params)` | `PATCH` | `/tasks/:id` |
+| `remove(id, params)` | `DELETE` | `/tasks/:id` |
+
+For a service named `users`, the same route pattern becomes `/users` and `/users/:id`. These
+routes use the service methods; they do not create a separate CRUD implementation.
+
+Important behavior to design for:
+
+- Only methods implemented on the service create their corresponding REST routes.
+- Custom methods such as `count()` remain direct-call methods unless you register a route yourself.
+- Generated service routes do **not** automatically authenticate or authorize requests.
+- Generated `POST` and `DELETE` routes use the normal JSON response behavior; they do not
+  automatically change success status codes to `201` or `204`.
+- The REST adapter passes the URL query as a flat params object. It does not automatically
+  convert `?limit=...` into `params.query` for `DBService` pagination. Add an explicit mapping
+  if your HTTP API needs that contract.
+- If your API requires specific status codes or a custom response shape, add an explicit route
+  or configure response/error behavior.
+
+### Global and per-service hooks
+
+Hooks let you implement cross-cutting behavior without duplicating it inside every method:
+authorization, validation, normalization, audit fields, output shaping, metrics, and side effects.
+
+`app.hooks(...)` applies global **service** hooks. `service.hooks(...)` applies hooks to one
+service. Hook maps can use `all` and/or method names such as `find`, `get`, `create`, `patch`,
+`remove`, or a custom method name.
+
+```js
+import { flite, status } from 'uflite'
+import { requireFields, transformData } from 'uflite/hooks'
+import { trimStrings } from 'uflite/transformers'
+import { isNonEmptyString } from 'uflite/predicates'
+
+const app = flite()
+const rows = new Map()
+
+const users = app.service('users', {
+  async find() { return [...rows.values()] },
+  async create(data) {
+    const user = { id: String(rows.size + 1), ...data }
+    rows.set(user.id, user)
+    return user
+  }
+})
+
+// Runs for service calls across the application.
+app.hooks({
+  before: {
+    all: [ctx => {
+      // A convenient place for service-wide logging/metrics.
+      console.log('service call:', ctx.path, ctx.method)
+    }]
+  }
+})
+
+// Runs only for create calls to this service.
+users.hooks({
+  before: {
+    create: [
+      requireFields(['name']),
+      transformData(trimStrings({ fields: ['name'] })),
+      ctx => {
+        if (!isNonEmptyString(ctx.data.name)) {
+          throw new status(400, 'name is required')
+        }
+      }
+    ]
+  },
+  after: {
+    create: [ctx => {
+      ctx.result.label = ctx.result.name.toUpperCase()
+    }]
+  },
+  error: {
+    all: [ctx => {
+      // Service error hooks are useful for logging/metrics.
+      console.warn('Service failed:', ctx.method, ctx.error?.message)
+    }]
+  }
+})
+```
+
+A service hook receives a mutable context with fields such as
+`{ app, service, path, method, params, id, data, result, error }`. It does **not** receive the
+raw HTTP `Request`. The `params` object is supplied to direct service calls and REST calls; derive
+authorization identity from trusted session/token validation, never from a client-controlled
+role or user ID.
+
+### Beginner example: Notes CRUD
+
+This small CRUD service stores notes in a JavaScript `Map`. It uses the full `uflite` entry, so
+implemented standard service methods become REST routes automatically. No database package is needed.
+
+```js
+import { flite, status } from 'uflite'
+
+const app = flite()
+const notes = new Map()
+let nextId = 1
+
+app.service('notes', {
+  async find() {
+    return [...notes.values()]
+  },
+  async get(id) {
+    const note = notes.get(String(id))
+    if (!note) throw new status(404, 'Note not found')
+    return note
+  },
+  async create(data) {
+    if (typeof data?.title !== 'string' || !data.title.trim()) {
+      throw new status(400, 'title is required')
+    }
+    const note = {
+      id: String(nextId++),
+      title: data.title.trim(),
+      body: typeof data.body === 'string' ? data.body : '',
+      pinned: Boolean(data.pinned),
+      createdAt: new Date().toISOString()
+    }
+    notes.set(note.id, note)
+    return note
+  },
+  async patch(id, data) {
+    const note = notes.get(String(id))
+    if (!note) throw new status(404, 'Note not found')
+    if (typeof data?.title === 'string') note.title = data.title.trim()
+    if (typeof data?.body === 'string') note.body = data.body
+    if (typeof data?.pinned === 'boolean') note.pinned = data.pinned
+    return note
+  },
+  async remove(id) {
+    const key = String(id)
+    const note = notes.get(key)
+    if (!note) throw new status(404, 'Note not found')
+    notes.delete(key)
+    return note
+  }
+})
+
+export default app
+```
+
+Run it with Bun:
+
+```js
+// server.js
+import app from './app.js'
+Bun.serve({ port: 3000, fetch: request => app.fetch(request) })
+```
+
+Try these requests:
+
+```sh
+curl http://localhost:3000/notes
+curl -X POST http://localhost:3000/notes -H 'content-type: application/json' \
+  -d '{"title":"Read chapter 3","body":"Make summary notes","pinned":true}'
+curl http://localhost:3000/notes/1
+curl -X PATCH http://localhost:3000/notes/1 -H 'content-type: application/json' \
+  -d '{"pinned":false}'
+curl -X DELETE http://localhost:3000/notes/1
+```
+
+This is in-memory storage, so data resets when the process restarts. `patch` changes only supplied
+fields; `update` is intended for full replacement.
+
+### Write your own service
+
+A service is just an object with methods. Register it with `app.service(name, implementation)`.
+uflite wraps it with hooks/events and creates REST routes for the standard methods that exist.
+
+```js
+import { flite } from 'uflite'
+const app = flite()
+
+app.service('greetings', {
+  async find() {
+    return [{ message: 'Hello!' }]
+  },
+  async get(id) {
+    return { id: String(id), message: `Hello, ${id}!` }
+  }
+})
+
+export default app
+```
+
+This creates `GET /greetings` and `GET /greetings/:id`. No create/patch/remove routes are generated
+because those methods were not implemented. You can look up and call the service directly:
+
+```js
+const greetings = app.service('greetings')
+const greeting = await greetings.get('Kethan')
+```
+
+Custom methods are direct-call only unless you add a route explicitly:
+
+```js
+app.get('/greetings/count', async () => ({
+  count: (await app.service('greetings').find()).length
+}))
+```
+
+### Lifecycle order and error behavior
+
+For a successful service method, the order is:
+
+```text
+app.before.all
+  → app.before.<method>
+    → service.before.all
+      → service.before.<method>
+        → service implementation
+      ← service.after.<method>
+    ← service.after.all
+  ← app.after.<method>
+← app.after.all
+→ mutation event (for successful create/update/patch/remove)
+```
+
+Within `before` hooks, `all` runs before the method-specific hook. Within `after` hooks,
+method-specific hooks run before `all`.
+
+Implementation errors go through:
+
+```text
+service.error.<method>
+  → service.error.all
+    → app.error.<method>
+      → app.error.all
+        → original error is rethrown
+```
+
+Service error hooks observe and can log errors; setting `context.result` in an error hook does not
+turn the failed call into a successful result. Exceptions thrown by before/after hooks or event
+listeners do not enter the service error-hook path described above. A REST request may separately
+be handled by the router's request-level error hook.
+
+In default `mode: 0`, hooks advance automatically. In `mode: 1`, each hook must call `next()` to
+continue. Service setup runs when the service is registered; `app.teardown()` invokes teardown
+but does **not** await asynchronous cleanup.
+
+### Service events and custom methods
+
+A service wrapper emits mutation events after successful changes. Register listeners with
+`service.on(...)`:
+
+```js
+const tasks = app.service('tasks', implementation)
+
+tasks.on('created', task => console.log('created', task.id))
+tasks.on('updated', task => console.log('updated', task.id))
+tasks.on('patched', task => console.log('patched', task.id))
+tasks.on('removed', task => console.log('removed', task.id))
+```
+
+The app also provides a simple in-process event emitter:
+
+```js
+app.on('cache:refresh', payload => console.log('refresh', payload))
+app.emit('cache:refresh', { source: 'admin' })
+```
+
+Custom service methods are useful for application operations that do not map neatly to CRUD.
+They still go through the service wrapper and can use service hooks, but they are not exposed as
+HTTP endpoints automatically:
+
+```js
+const reports = app.service('reports', {
+  async find() { return [] },
+  async countByStatus() { return { open: 4, closed: 9 } }
+})
+
+app.get('/reports/count-by-status', async () => reports.countByStatus())
+```
+
+Events and channels are in-process features; they are not a WebSocket server or a distributed
+message bus.
+
+## Built-in services and integrations
+
+Optional service factories are imported from their individual subpaths. Install only the
+dependencies needed by the integration you use. Prefer individual imports over the
+`uflite/services` barrel: the barrel eagerly imports DB and AWS-backed modules.
+
+### DBService
+
+`createDBService` supplies a Feathers-like data service with `find`, `get`, `create`, `update`,
+`patch`, and `remove`. Install the optional `umosql` dependency when using it:
+
+```bash
+bun add umosql@0.3.1
+```
+
+```js
+import { flite } from 'uflite'
+import { createDBService } from 'uflite/services/db'
+
+const app = flite()
+const tasks = app.service('tasks', createDBService())
+
+// Call the service directly. DBService handles filtering, sort, projection and pagination.
+const page = await tasks.find({
+  query: {
+    done: false,
+    $limit: 5,
+    $skip: 0,
+    $sort: { title: 1 },
+    $select: ['_id', 'title', 'done']
+  }
+})
+
+// { total, limit, skip, data }
+```
+
+`createDBService(getCollection?, options?)` accepts:
+
+- `getCollection`: optional function that returns the collection for the supplied params.
+  When omitted, it creates an isolated in-memory collection.
+- `idField`: identifier field; defaults to `_id`.
+- `paginate.default`: default page size; defaults to `10`.
+- `paginate.max`: maximum page size; defaults to `100`.
+- `multi`: whether bulk operations are allowed (`true`, a method-name array, or a per-method map).
+- `initialData`: seed records for the default in-memory collection.
+
+Supported query options include:
+
+| Option | Behavior |
+| --- | --- |
+| ordinary fields | Filter records using the underlying collection query syntax |
+| `$limit` | Set page size; clamped to the configured maximum |
+| `$skip` | Skip records |
+| `$sort` | Sort fields ascending (`1`) or descending (`-1`) |
+| `$select` | Project selected fields; accepts a string, array, or projection object |
+| `paginate: false` | Return an array instead of `{ total, limit, skip, data }` |
+| `$limit: 0` | Return no rows while preserving the total count |
+
+With pagination enabled, `find()` returns `{ total, limit, skip, data }`. The default in-memory
+collection is not persistent and is lost when the process exits. Pass a `getCollection` function
+to connect the service to a collection supplied by your chosen adapter.
+
+DBService's missing-record error uses `code: 404`, not `status: 404`. If an HTTP endpoint must
+return 404 for a missing record, map that error to an HTTP status in your route or error policy.
+Also note that service REST query params are flat by default; the direct call above passes the
+nested `params.query` structure DBService expects.
+
+### Authentication and ACL
+
+`createAuth` integrates Better Auth. It requires the `better-auth` package and a compatible
+adapter; `sqlAdapterFactory` is also exported from the same subpath. Configuration accepts an
+adapter, `baseURL`, `secret`, trusted origins, email/password options, secondary storage, logging,
+plugins, and additional Better Auth options.
+
+```bash
+bun add better-auth
+```
+
+```js
+import { createAuth } from 'uflite/services/auth'
+
+// Supply a real, compatible adapter and a secret from your environment.
+const auth = await createAuth({
+  adapter,
+  baseURL: process.env.AUTH_BASE_URL,
+  secret: process.env.AUTH_SECRET
+})
+
+// Mount Better Auth's real Fetch handler in your app.
+app.all('/api/auth/*', req => auth.handler(req))
+```
+
+`createACL` provides permission checks with `role:resource:method` strings and wildcard matching
+for each segment. Rules can also include a `check` filter evaluated against the context:
+
+```bash
+bun add uqry
+```
+
+```js
+import { createACL } from 'uflite/services/acl'
+
+const acl = createACL({
+  enabled: true,
+  rules: [{
+    id: 'members-can-read-tasks',
+    permissions: ['member:tasks:find', 'member:tasks:get']
+  }]
+})
+
+// Use an identity returned by your verified authentication layer; never trust a query parameter.
+const verifiedUser = { id: 'user-123', role: 'member' } // illustrative server-side value
+const allowed = acl.can(
+  { user: verifiedUser, role: verifiedUser.role },
+  'member:tasks:find'
+)
+```
+
+The application must derive `session` and roles from trusted authentication state. ACL is a
+policy helper; you must call it from middleware/hooks and protect each generated service route.
+
+### Table service
+
+`createTableService(dbAdapter)` is the schema-administration service. It is **not** the same as
+`createDBService`: DBService reads and writes records; TableService lists tables, reads schemas,
+creates tables, changes columns, and drops tables. It requires a database adapter with the schema
+capabilities for each operation (`listCollections`, `getTableSchema`, `createTableWithSchema`,
+`addColumn`, `renameColumn`, `modifyColumn`, `dropColumn`, and `dropCollection`). Unsupported
+capabilities fail explicitly rather than being silently emulated.
+
+#### Working example: SQLite + umosql + automatic REST routes
+
+This example uses Bun's built-in SQLite driver and umosql's schema-capable SQL adapter. Install:
+
+```sh
+bun add uflite umosql@0.3.1
+```
+
+```js
+// app.js — Bun + SQLite
+import { flite } from 'uflite'
+import { createTableService } from 'uflite/services/table'
+import { Database } from 'bun:sqlite'
+import {
+  createQueryBuilder, exprOps, filterOps, stageHandlers, updateOps
+} from 'umosql'
+import { createSQLAdapter } from 'umosql/schemaless'
+
+const sqlite = new Database('./app.sqlite')
+const queryBuilder = createQueryBuilder({ filterOps, exprOps, updateOps, stageHandlers })
+const db = createSQLAdapter({
+  database: 'sqlite',
+  queryBuilder,
+  execute: async (sql, params = []) => {
+    const statement = sqlite.query(sql)
+    if (/^(SELECT|PRAGMA)/i.test(sql.trim())) {
+      return { rows: statement.all(...params) }
+    }
+    const result = statement.run(...params)
+    return { rows: [], rowCount: result.changes, lastInsertRowid: result.lastInsertRowid }
+  }
+})
+
+const app = flite()
+app.service('tables', createTableService(db))
+
+export default app
+```
+
+Save this as `app.js`. For local requests, create `server.js`:
+
+```js
+import app from './app.js'
+
+Bun.serve({ port: 3000, fetch: request => app.fetch(request) })
+```
+
+Start it with `bun server.js`. The full entry automatically maps the standard service methods to REST routes:
+
+| Request | Service operation | Purpose |
+| :--- | :--- | :--- |
+| `GET /tables` | `find()` | List tables/collections |
+| `GET /tables/:id` | `get(tableName)` | Read a table schema |
+| `POST /tables` | `create(data)` | Create a table from `{ name, schema }` |
+| `PATCH /tables/:id` | `patch(tableName, data)` | Add, rename, modify, or drop a column |
+| `DELETE /tables/:id` | `remove(tableName)` | Drop a table |
+
+Example requests:
+
+```sh
+# List tables
+curl http://localhost:3000/tables
+
+# Create a table; schema types may use JSON Schema types or safe SQL type names
+curl -X POST http://localhost:3000/tables \
+  -H 'content-type: application/json' \
+  -d '{"name":"notes","schema":{"properties":{"title":{"type":"string"},"pinned":{"type":"boolean","default":false}},"required":["title"]}}'
+
+# Inspect schema
+curl http://localhost:3000/tables/notes
+
+# Add a column
+curl -X PATCH http://localhost:3000/tables/notes \
+  -H 'content-type: application/json' \
+  -d '{"operation":"addColumn","columnName":"createdAt","type":"TEXT"}'
+
+# Drop the table
+curl -X DELETE http://localhost:3000/tables/notes
+```
+
+`PATCH` operations are `addColumn` (`columnName`, `type`, optional `options`), `renameColumn`
+(`oldName`, `newName`), `modifyColumn` (`columnName`, `type`, optional `options`), and `dropColumn`
+(`columnName`). Table and column names are validated as simple SQL identifiers; column types are
+validated to reject SQL fragments. The service code is independent of the HTTP host; the Bun `server.js` above is only for local
+requests. See the runtime section for Hono, Node.js, Deno, and Cloudflare Worker hosting examples.
+
+**Security:** TableService is a database-administration API. Do not expose these generated routes
+publicly. Add authentication and authorization at the request boundary, or define explicit
+protected routes that call the service methods. uflite does not automatically authenticate generated
+service routes.
+
+### Expanded server example: a table with multiple data types and sample rows
+
+`TableService` manages table schemas; it does **not** insert or query application records itself.
+The example below creates a table with text, integer, real, boolean, date-time, and JSON-text columns,
+then uses Bun's SQLite driver to insert and read sample rows. Explicit SQL type names make the intended
+storage types easy to see.
+
+```js
+// app.js — Bun + SQLite + UMOSQL
+import { flite, json, status } from 'uflite'
+import { createTableService } from 'uflite/services/table'
+import { Database } from 'bun:sqlite'
+import {
+  createQueryBuilder, exprOps, filterOps, stageHandlers, updateOps
+} from 'umosql'
+import { createSQLAdapter } from 'umosql/schemaless'
+
+const sqlite = new Database('./app.sqlite')
+const queryBuilder = createQueryBuilder({ filterOps, exprOps, updateOps, stageHandlers })
+const db = createSQLAdapter({
+  database: 'sqlite',
+  queryBuilder,
+  execute: async (sql, params = []) => {
+    const statement = sqlite.query(sql)
+    if (/^(SELECT|PRAGMA)/i.test(sql.trim())) return { rows: statement.all(...params) }
+    const result = statement.run(...params)
+    return { rows: [], rowCount: result.changes, lastInsertRowid: result.lastInsertRowid }
+  }
+})
+
+const app = flite()
+app.service('tables', createTableService(db))
+
+// Demo-only endpoint: create the table once and insert a sample row.
+app.post('/demo/seed', async () => {
+  const names = await db.listCollections()
+  if (!names.includes('demo_records')) {
+    await app.service('tables').create({
+      name: 'demo_records',
+      schema: {
+        properties: {
+          title: 'TEXT',
+          quantity: 'INTEGER',
+          price: 'REAL',
+          active: 'BOOLEAN',
+          created_at: 'DATETIME',
+          metadata: 'TEXT'
+        },
+        required: ['title', 'quantity']
+      }
+    })
+  }
+
+  sqlite.query(`INSERT INTO demo_records
+    (title, quantity, price, active, created_at, metadata)
+    VALUES (?, ?, ?, ?, ?, ?)`
+  ).run('Notebook', 3, 49.95, 1, new Date().toISOString(),
+    JSON.stringify({ color: 'blue', tags: ['work', 'ideas'] }))
+
+  return json({ ok: true, message: 'Inserted one demo row' }, { status: 201 })
+})
+
+app.get('/demo/records', () => {
+  const rows = sqlite.query('SELECT rowid AS id, * FROM demo_records').all()
+  return json(rows.map(row => ({
+    ...row,
+    active: Boolean(row.active),
+    metadata: row.metadata ? JSON.parse(row.metadata) : null
+  })))
+})
+
+app.get('/demo/records/:id', req => {
+  const row = sqlite.query('SELECT rowid AS id, * FROM demo_records WHERE rowid = ?')
+    .get(Number(req.params.id))
+  if (!row) throw new status(404, 'Record not found')
+  return json({
+    ...row,
+    active: Boolean(row.active),
+    metadata: row.metadata ? JSON.parse(row.metadata) : null
+  })
+})
+
+export default app
+```
+
+```js
+// server.js
+import app from './app.js'
+Bun.serve({ port: 3000, fetch: request => app.fetch(request) })
+```
+
+Run `bun server.js`, then call:
+
+```sh
+# Create the table if needed and insert one example row
+curl -X POST http://localhost:3000/demo/seed
+
+# Inspect the schema through TableService
+curl http://localhost:3000/tables/demo_records
+
+# Read the sample rows
+curl http://localhost:3000/demo/records
+```
+
+| Field | Example | Meaning |
+| --- | --- | --- |
+| `title` (`TEXT`) | `"Notebook"` | Text |
+| `quantity` (`INTEGER`) | `3` | Whole number |
+| `price` (`REAL`) | `49.95` | Floating-point number |
+| `active` (`BOOLEAN`) | `1` in SQLite | Boolean-like flag |
+| `created_at` (`DATETIME`) | ISO date-time string | Date/time text |
+| `metadata` (`TEXT`) | JSON string | Structured JSON stored as text |
+
+SQLite uses dynamic typing, so `BOOLEAN` and `DATETIME` are declared affinities rather than strict
+native storage types. The example converts the flag and JSON text when returning HTTP responses.
+`TableService` performs schema operations; the sample data routes use Bun SQLite directly. This seed
+endpoint is for local demonstration only and should not be exposed unauthenticated in production.
+
+### Local and S3-compatible storage
+
+`uflite/services/localStorage` offers local filesystem storage without the AWS SDK.
+`uflite/services/storage` offers local or S3-compatible storage and requires both
+`@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner`, including when using its local mode.
+
+Storage service operations include metadata listing and lookup, upload/download, removal, and
+presign helpers. The local service supports file-size limits and prefix/cursor listing. The
+S3-compatible service can create presigned upload/download URLs for direct browser-to-object-store
+transfers.
+
+### Storage factory examples
+
+Local filesystem storage without AWS packages:
+
+```js
+import { createLocalStorageService } from 'uflite/services/localStorage'
+
+const files = createLocalStorageService({
+  basePath: './uploads',
+  publicUrl: undefined,
+  maxFileSize: 5 * 1024 * 1024
+})
+
+app.service('files', files)
+```
+
+S3-compatible storage requires the AWS SDK packages:
+
+```bash
+bun add @aws-sdk/client-s3 @aws-sdk/s3-request-presigner
+```
+
+```js
+import { createStorageService } from 'uflite/services/storage'
+
+const files = createStorageService({
+  type: 's3',
+  bucket: process.env.S3_BUCKET,
+  region: process.env.S3_REGION,
+  endpoint: process.env.S3_ENDPOINT, // optional for MinIO/compatible providers
+  accessKeyId: process.env.S3_ACCESS_KEY_ID,
+  secretAccessKey: process.env.S3_SECRET_ACCESS_KEY,
+  forcePathStyle: true // commonly needed by local S3-compatible endpoints
+})
+
+app.service('files', files)
+```
+
+The `createStorageService` options also support `sessionToken`, a custom S3 `client`, custom
+presign behavior, and separate upload/download URL expiry settings. For a local backend through
+`createStorageService({ type: 'local', ... })`, the AWS SDK packages are still required by that
+module; use `createLocalStorageService` if you specifically want local storage without them.
+
+Storage service operations include `find`, `get`, `create`, `remove`, `upload`, `download`,
+`presignUpload`, and `presignDownload`. The local storage implementation supports file-size
+limits and prefix/cursor listing. The S3-compatible implementation can issue presigned URLs for
+direct browser-to-object-store transfers.
+
+Security notes:
+
+- Protect upload, download, metadata, delete, and presign operations with authentication and ACL.
+- Local presign URLs are ordinary application URLs, **not authorization tokens**.
+- An S3 presigned PUT URL does not itself enforce a maximum upload size.
+- Configure bucket, region, credentials, endpoint, and path-style behavior to match your provider.
+- Do not assume a live S3 provider has been tested just because the adapter is available.
+
+## Write your own middleware and hooks
+
+Request middleware and hooks operate at different layers. Middleware receives the HTTP `Request`
+and is useful for request-wide checks. Service hooks receive a mutable service `context` and are
+useful for validation, data changes, authorization, audit fields, and result shaping.
+
+### Custom route middleware in mode 0
+
+In mode 0 (the default), a `null` or `undefined` result continues dispatch; a non-nullish result
+short-circuits it. A guard can return a response to reject a request or return nothing to continue.
+
+```js
+import { flite, json } from 'uflite'
+const app = flite() // mode 0
+
+const requireApiKey = req => {
+  if (req.headers.get('x-api-key') !== 'demo-key') {
+    return json({ error: 'Invalid API key' }, { status: 401 })
+  }
+  // undefined means continue in mode 0
+}
+
+app.use('/private/*', req => requireApiKey(req))
+app.get('/private/profile', () => json({ id: 'u1', name: 'Demo user' }))
+```
+
+The wrapper `req => requireApiKey(req)` is deliberate: some Fetch hosts pass extra adapter
+arguments. Do not register an optional-`next` middleware directly in mode 0 unless you know what
+arguments the host supplies.
+
+### Custom route middleware in mode 1
+
+In mode 1, the handler must call `next()` to continue. `next` is the last handler argument. This
+makes short-circuiting explicit:
+
+```js
+import { flite, json } from 'uflite'
+const app = flite({ mode: 1 })
+
+const requireApiKey = async (req, next) => {
+  if (req.headers.get('x-api-key') !== 'demo-key') {
+    return json({ error: 'Invalid API key' }, { status: 401 })
+  }
+  return await next()
+}
+
+app.get('/private/profile', requireApiKey, () => json({ name: 'Demo user' }))
+```
+
+### Write your own request hooks
+
+`uflite/lite` and full `uflite` support request-level `before`, `after`, and `error` hooks. In
+mode 0, hooks advance automatically and can return a replacement value:
+
+```js
+import { flite } from 'uflite/lite'
+import { json, error } from 'uflite'
+
+const app = flite({
+  before: { all: [req => { req.startedAt = Date.now() }] },
+  after: { all: [(result, req) => {
+    if (!(result instanceof Response)) return result
+    const headers = new Headers(result.headers)
+    headers.set('x-duration-ms', String(Date.now() - req.startedAt))
+    return new Response(result.body, {
+      status: result.status, statusText: result.statusText, headers
+    })
+  }] },
+  error: { all: [err => error(err.status || 500,
+    err.status >= 500 ? 'Internal Server Error' : err.message)] }
+})
+
+app.get('/health', () => json({ ok: true }))
+```
+
+In mode 1, each request hook must call `next()` when the next hook/phase should run. For example:
+
+```js
+import { flite } from 'uflite/lite'
+import { json } from 'uflite'
+
+const app = flite({
+  mode: 1,
+  before: {
+    all: [async (req, next) => {
+      req.requestId = crypto.randomUUID()
+      await next()
+    }]
+  }
+})
+app.get('/health', req => json({ ok: true, requestId: req.requestId }))
+```
+
+The phase signatures are `before(request, ...args)`, `after(result, request, ...args)`, and
+`error(error, request, ...args)`. In mode 1, `next` is the final argument. Request hooks are
+separate from service hooks.
+
+### Write your own service hooks
+
+Service hooks receive a mutable context. In mode 0, mutate the context and return; the framework
+continues automatically:
+
+```js
+const notes = app.service('notes')
+notes.hooks({
+  before: { create: [context => {
+    context.data.createdAt = new Date().toISOString()
+  }] },
+  after: { create: [context => {
+    context.result.label = 'Created note'
+  }] }
+})
+```
+
+In mode 1, each hook must call `next()` to continue to the next hook or implementation:
+
+```js
+notes.hooks({
+  before: { create: [async (context, next) => {
+    if (!context.data?.title?.trim()) throw new Error('title is required')
+    context.data.title = context.data.title.trim()
+    await next()
+  }] },
+  after: { create: [async (context, next) => {
+    context.result.label = 'Created note'
+    await next()
+  }] }
+})
+```
+
+A mode-1 hook that deliberately does not call `next()` short-circuits the remaining lifecycle.
+See [Lifecycle order and error behavior](#lifecycle-order-and-error-behavior) for execution order
+and error-path details.
+
+### Make a reusable middleware factory
+
+```js
+// middleware.js
+import { json } from 'uflite'
+
+export const requireHeader = (headerName, expectedValue) => req => {
+  if (req.headers.get(headerName) === expectedValue) return undefined
+  return json({ error: `Missing or invalid ${headerName}` }, { status: 401 })
+}
+```
+
+In mode 0, use it as `app.use('/admin/*', req => requireHeader('x-admin-key', 'demo')(req))`.
+For mode 1, write a separate `(req, next) => { ...; return next() }` middleware or adapt the
+factory to call `next()` explicitly. Do not mix mode-0 return-to-continue behavior with mode-1
+explicit continuation.
+
+## DBService without UMOSQL: a plain JavaScript alternative
+
+`createDBService` itself **requires `umosql`**, even with its default in-memory collection, because
+it imports `umosql/memory`. There is no supported way to use that factory without the dependency.
+If you want a tiny database-like service without a database package, use a `Map` and implement the
+CRUD methods directly. This is a custom service, not the `createDBService` factory.
+
+```js
+import { flite, status } from 'uflite'
+const app = flite()
+const rows = new Map()
+let nextId = 1
+
+app.service('records', {
+  async find({ query = {} } = {}) {
+    let result = [...rows.values()]
+    if (query.active !== undefined) {
+      const active = query.active === true || query.active === 'true'
+      result = result.filter(row => row.active === active)
+    }
+    if (query.q) {
+      const term = String(query.q).toLowerCase()
+      result = result.filter(row => row.name.toLowerCase().includes(term))
+    }
+    return result
+  },
+  async get(id) {
+    const row = rows.get(String(id))
+    if (!row) throw new status(404, 'Record not found')
+    return row
+  },
+  async create(data) {
+    if (typeof data?.name !== 'string' || !data.name.trim()) {
+      throw new status(400, 'name is required')
+    }
+    const row = { id: String(nextId++), name: data.name.trim(), active: data.active ?? true }
+    rows.set(row.id, row)
+    return row
+  },
+  async patch(id, data) {
+    const row = rows.get(String(id))
+    if (!row) throw new status(404, 'Record not found')
+    if (typeof data?.name === 'string') row.name = data.name.trim()
+    if (typeof data?.active === 'boolean') row.active = data.active
+    return row
+  },
+  async remove(id) {
+    const key = String(id)
+    const row = rows.get(key)
+    if (!row) throw new status(404, 'Record not found')
+    rows.delete(key)
+    return row
+  }
+})
+
+export default app
+```
+
+This creates `GET /records`, `GET /records/:id`, `POST /records`, `PATCH /records/:id`, and
+`DELETE /records/:id`. It does not provide DBService pagination, sorting, projection, adapter
+support, or persistence. Use `createDBService` when you need those features and can install `umosql`.
+
+## Reusable hooks, transformers, predicates, and resolvers
+
+These modules are standalone utilities designed to compose with service hooks. A factory returns
+a hook/resolver/transformer; it is not automatically applied to every request. Choose the
+utility, configure it, and register it on the relevant service or use it in application code.
+
+### Service hook catalog
+
+Import from `uflite/hooks` (or use the corresponding named exports from full `uflite`).
+
+| Category | Utilities |
+| --- | --- |
+| Flow control | `iff`, `unless`, `throwIf`, `disallow`, `setData`, `setResult` |
+| Input and data | `requireFields`, `setDefaults`, `preventChanges`, `removeFields`, `transformData`, `setField`, `pickDataFields`, `validateData`, `preventEmptyData` |
+| Query | `setQueryDefaults`, `pickQueryFields`, `transformQuery` |
+| Authentication and authorization | `requireAuth`, `requireRole`, `requirePermission`, `requireOwner`, `scopeToActor`, `requireMethod`, `rateLimit` |
+| Results | `transformResult`, `pickResultFields`, `omitResultFields`, `mapResult` |
+| Lifecycle and operations | `auditFields`, `publishEvent`, `sideEffect`, `debug` |
+
+Example: compose validation, normalization, and output shaping in the service lifecycle:
+
+```js
+import { requireFields, transformData, pickResultFields } from 'uflite/hooks'
+import { trimStrings } from 'uflite/transformers'
+
+users.hooks({
+  before: {
+    create: [
+      requireFields(['name', 'email']),
+      transformData(trimStrings({ fields: ['name', 'email'] }))
+    ]
+  },
+  after: {
+    create: [pickResultFields(['id', 'name', 'email'])]
+  }
+})
+```
+
+The utilities target service context data by default where appropriate (for example `data`, `result`,
+or `params.query`); consult the utility's options when changing the target. They receive a service
+context, **not** an HTTP `Request`.
+
+### Transformers
+
+Import from `uflite/transformers`. Transformers operate on values and can be composed with
+`compose`/`pipe`.
+
+| Purpose | Utilities |
+| --- | --- |
+| Composition | `identity`, `compose`, `pipe` |
+| Strings | `trimString`, `lowercase`, `uppercase`, `normalizeEmail`, `normalizeWhitespace`, `slugify` |
+| Parsing | `toNumber`, `toInteger`, `parseJSON`, `toBoolean` |
+| Object fields | `pick`, `omit`, `renameFields`, `mapFields`, `trimStrings`, `removeEmpty`, `setDefaults`, `updatePath` |
+| Arrays | `mapArray` |
+
+```js
+import { pipe, trimString, lowercase, normalizeEmail } from 'uflite/transformers'
+
+const cleanEmail = pipe(trimString, lowercase, normalizeEmail)
+const email = await cleanEmail('  ADA@EXAMPLE.COM  ')
+```
+
+Some transformations are asynchronous. `compose` and `pipe` return an async function, so `await`
+the result.
+
+### Predicates
+
+Import from `uflite/predicates`. Predicates are reusable value checks and can be combined:
+
+```js
+import { isNonEmptyString, isEmail, all, hasPath, pathEquals } from 'uflite/predicates'
+
+const validEmail = all(isNonEmptyString, isEmail)
+const validUser = value => validEmail(value.email) && pathEquals('role', 'member')(value)
+```
+
+Available predicates include type checks (`isString`, `isNumber`, `isInteger`, `isBoolean`,
+`isArray`, `isObject`, `isPlainObject`), presence/empty checks (`isPresent`, `isNil`,
+`isDefined`, `isEmpty`, `isNonEmptyString`), format checks (`isEmail`, `isURL`, `isUUID`),
+comparison checks (`equals`, `notEquals`, `oneOf`, `includes`, `matches`, `greaterThan`,
+`atLeast`, `lessThan`, `atMost`, `between`), length and collection checks (`lengthAtLeast`,
+`lengthAtMost`, `hasAny`, `hasAll`), path checks (`hasPath`, `pathEquals`, `pathMatches`), and
+combinators (`all`, `any`, `not`, `when`, `contextPredicate`, `truthy`, `falsy`).
+
+### Resolvers
+
+Import from `uflite/resolvers`. Resolvers compute or enrich fields from an object, related data,
+or context. They can be useful for shaping service results without embedding presentation logic in
+the data service.
+
+| Purpose | Utilities |
+| --- | --- |
+| Field/context | `value`, `fromPath`, `fromContext`, `fallback`, `mapValue` |
+| Conditional/redaction | `resolveIf`, `omitIf`, `redactIf` |
+| Relations and arrays | `lookup`, `mapArray`, `relation`, `relationMany` |
+| Aggregates and formatting | `join`, `count`, `sum`, `pluck` |
+
+```js
+import { fromPath, redactIf } from 'uflite/resolvers'
+
+const displayName = fromPath('profile.displayName', { fallback: 'Anonymous' })
+const privateEmail = redactIf((value, object, context) => !context?.isOwner)
+```
+
+Resolvers are functions: connect them to the resolution flow your application uses. They do not
+automatically run for every service response unless you register/apply them.
+
+## HTTP middleware
+
+Import HTTP middleware from `uflite/middlewares`. Middleware operates on the HTTP request/response
+flow; it is separate from service-context hooks.
+
+| Middleware | What it helps with | Response-phase companion |
+| --- | --- | --- |
+| `cors(options?)` | Configure cross-origin request policy | `corsAfter` |
+| `logger(options?)` | Request/response logging (`dev`, `combined`, or `json`) | `loggerAfter` |
+| `rateLimit(options?)` | In-process request limiting | `rateLimitAfter` |
+| `bearerAuth(options?)` | Static token or custom token verifier | — |
+| `basicAuth(options)` | Username/password map | — |
+| `bodyLimit(options?)` | Request body byte limit | — |
+| `secureHeaders(options?)` | Security response headers | `secureHeadersAfter` |
+| `requestId(options?)` | Request ID generation | `requestIdAfter` |
+
+Example: request ID generation and response headers:
+
+```js
+import { flite, json } from 'uflite'
+import { requestId, requestIdAfter } from 'uflite/middlewares'
+
+const addRequestId = requestId()
+const app = flite({
+  before: { all: [req => addRequestId(req)] },
+  after: {
+    all: [(response, req) =>
+      response?.headers ? requestIdAfter(response, req) : response]
+  }
+})
+app.get('/health', () => json({ ok: true }))
+```
+
+Notes:
+
+- `rateLimit` is in-process. For multi-instance deployments, use a trusted key and shared or
+  upstream enforcement.
+- Do not trust forwarded IP headers unless your proxy configuration makes them trustworthy.
+- `bodyLimit` counts streamed bytes, but an upstream connection/body cap is still recommended.
+- In mode 0, wrap optional-next middleware as `req => middleware(req)` if the runtime passes
+  extra Fetch handler arguments.
+
+## Events and channels
+
+The full entry has an in-process event emitter and channels. Service wrappers also emit mutation
+events (`created`, `updated`, `patched`, `removed`) after successful mutations.
+
+```js
+import { flite } from 'uflite'
+
+const app = flite()
+
+app.on('cache:refresh', payload => {
+  console.log('refresh requested by', payload.source)
+})
+app.emit('cache:refresh', { source: 'admin' })
+
+const connection = {
+  send(message) {
+    console.log('deliver to connection:', message)
+  }
+}
+app.channel('updates').join(connection, { room: 'tasks' })
+app.channel('updates').send('task-created', { id: '1' })
+```
+
+Channels require the application to supply a connection object with the expected `send` behavior.
+They are not WebSocket upgrades and do not provide distributed delivery. Use a real transport and
+shared event infrastructure if your app needs cross-process or cross-instance messages.
+
+## Example coverage
+
+The repository contains five runnable projects, and their core patterns are documented directly
+above rather than requiring you to open another file to understand the framework:
+
+1. **Nano CRUD:** in-memory REST endpoints, validation, explicit status codes, and safe error handling.
+2. **Nano practical:** query filters, request guards, and mounted/versioned routers.
+3. **Lite notes:** global request `before`/`after`/`error` hooks.
+4. **Full services:** `DBService`, Better Auth, ACL, and local or optional S3-compatible storage.
+5. **Full lifecycle:** middleware, service hooks, transformers, predicates, resolvers, and mutation events.
+
+To run the repository's versions, build the checkout first:
+
+```bash
+bun install
+bun run build
+bun run test:examples
+```
+
+The example projects use the built local package via `file:../..`; their HTTP server is Bun, and
+they do not require Hono or a Node HTTP adapter. The inline sections above explain the API and
+common patterns independently of those project files.
+
+## Additional patterns and edge cases
+
+<details>
+<summary>Service hooks, events and channels</summary>
+
+A full service hook receives `{app,service,path,method,params,id?,data?,result?,error?}`, not
+a Request. On success: app.before → service.before → implementation → service.after →
+app.after → mutation event. Within before hooks `all` precedes the method; within after hooks
+the method precedes `all`.
+
+Implementation failures enter service.error.method → service.error.all → app.error.method →
+app.error.all and are rethrown. Before/after-hook failures bypass **service** error hooks;
+request-level hooks may handle a failed REST route. In mode 1, hooks must call `next()` to
+continue. Async service `setup`/`teardown` are not awaited by registration/`app.teardown()`.
+
+```js
+import { flite, json } from 'uflite'
+
+const app = flite()
+app.on('ready', count => console.log(count))
+app.emit('ready', 1)
+
+// Supply an actual socket/connection when using channels.
+const connection = { send: message => console.log(message) }
+app.channel('updates').join(connection, { room: 'demo' })
+app.channel('updates').send('created', { id: 1 })
+app.get('/health', () => json({ ok: true }))
+```
+
+Events and channels are in-process, not WebSocket upgrades or cross-instance delivery. The
+service lifecycle and helper composition are documented in the sections above.
+
+</details>
+
+<details>
+<summary>Middleware, nested routers and data helpers</summary>
+
+`uflite/middlewares` offers request/response pairs such as `cors`/`corsAfter`,
+`requestId`/`requestIdAfter`, and `rateLimit`/`rateLimitAfter`. A rate limit is process-local;
+use a trusted `keyGenerator` and shared/upstream enforcement for distributed apps.
+`bodyLimit` measures bytes, but still needs an upstream transport cap.
+
+```js
+import { flite, json } from 'uflite'
+import { requestId, requestIdAfter } from 'uflite/middlewares'
+
+const app = flite({
+  before: { all: [request => requestId()(request)] },
+  after: { all: [(res, req) => res?.headers ? requestIdAfter(res, req) : res] }
+})
+app.get('/health', () => json({ ok: true }))
+```
+
+The `request => ...` wrapper forwards only the Request: in mode 0, an extra host argument must
+not be mistaken for an optional `next`. Mount a child with `app.use('/api/v1', child)`.
+Transformers, predicates, and field resolvers are standalone helpers; their feature groups and
+usage are documented above. The repository also includes deeper API and hook specifications for
+maintainers who need exact declarations and edge-case ordering.
+
+</details>
+
+## Browser SPA and React SPA
+
+`uflite/nano` can also match browser-side routes. In a browser SPA, the router runs in the user's
+browser; it is **not** a security boundary and does not replace your server API. These examples
+use the small `nano` entry and native History API, so no additional routing library is needed.
+
+### Plain browser SPA (vanilla JavaScript)
+
+Create `index.html` and `app.js`. This example has Home, About, and a parameterized Note page.
+The renderer uses `textContent` rather than inserting untrusted strings as HTML.
+
+```html
+<!-- index.html -->
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>uflite SPA</title>
+</head>
+<body>
+  <nav>
+    <a href="/" data-link>Home</a>
+    <a href="/about" data-link>About</a>
+    <a href="/notes/42" data-link>Example note</a>
+  </nav>
+  <main id="app" aria-live="polite">Loading…</main>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
+```
+
+```js
+// app.js
+import { flite } from 'uflite/nano'
+
+const router = flite()
+router.get('/', () => ({ title: 'Home', message: 'Welcome to the SPA.' }))
+router.get('/about', () => ({ title: 'About', message: 'This page is handled in the browser.' }))
+router.get('/notes/:id', request => ({
+  title: `Note ${request.params.id}`,
+  message: `You are viewing note ${request.params.id}.`
+}))
+router.all('*', () => ({ title: 'Not found', message: 'That page does not exist.' }))
+
+const root = document.querySelector('#app')
+
+async function render() {
+  const page = await router.fetch(new Request(window.location.href))
+  root.replaceChildren()
+  const heading = document.createElement('h1')
+  heading.textContent = page.title
+  const message = document.createElement('p')
+  message.textContent = page.message
+  root.append(heading, message)
+}
+
+function navigate(url) {
+  history.pushState({}, '', url)
+  void render()
+}
+
+document.addEventListener('click', event => {
+  const link = event.target.closest('a[data-link]')
+  if (!link || event.defaultPrevented || event.button !== 0 ||
+      event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+  const url = new URL(link.href, window.location.href)
+  if (url.origin !== window.location.origin) return
+  event.preventDefault()
+  navigate(url.pathname + url.search + url.hash)
+})
+
+window.addEventListener('popstate', () => { void render() })
+void render()
+```
+
+Install a browser bundler such as Vite (`npm install uflite` and `npm install -D vite`), add a
+`dev` script that runs `vite`, and serve the folder with `npm run dev`. The browser cannot resolve
+bare package imports such as `uflite/nano` without a bundler or import map.
+
+### React SPA
+
+Create a React app with Vite, install `uflite`, and use this as `src/App.jsx`:
+
+```jsx
+import { useEffect, useState } from 'react'
+import { flite } from 'uflite/nano'
+
+const router = flite()
+router.get('/', () => ({ page: 'home' }))
+router.get('/about', () => ({ page: 'about' }))
+router.get('/notes/:id', request => ({ page: 'note', id: request.params.id }))
+router.all('*', () => ({ page: 'not-found' }))
+
+function getUrl() {
+  return window.location.pathname + window.location.search + window.location.hash
+}
+
+export default function App() {
+  const [url, setUrl] = useState(getUrl)
+  const [route, setRoute] = useState({ page: 'loading' })
+
+  useEffect(() => {
+    const onPopState = () => setUrl(getUrl())
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    router.fetch(new Request(new URL(url, window.location.origin).href))
+      .then(result => { if (!cancelled) setRoute(result) })
+      .catch(() => { if (!cancelled) setRoute({ page: 'not-found' }) })
+    return () => { cancelled = true }
+  }, [url])
+
+  function navigate(event) {
+    const link = event.target.closest('a[data-link]')
+    if (!link || event.defaultPrevented || event.button !== 0 ||
+        event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
+    const next = new URL(link.href, window.location.href)
+    if (next.origin !== window.location.origin) return
+    event.preventDefault()
+    history.pushState({}, '', next.pathname + next.search + next.hash)
+    setUrl(getUrl())
+  }
+
+  return (
+    <div onClick={navigate}>
+      <nav>
+        <a href="/" data-link>Home</a>{' | '}
+        <a href="/about" data-link>About</a>{' | '}
+        <a href="/notes/42" data-link>Example note</a>
+      </nav>
+      <main>
+        {route.page === 'home' && <><h1>Home</h1><p>Welcome to the React SPA.</p></>}
+        {route.page === 'about' && <><h1>About</h1><p>Routes are matched by uflite.</p></>}
+        {route.page === 'note' && <><h1>Note {route.id}</h1><p>Example note page.</p></>}
+        {route.page === 'not-found' && <><h1>Not found</h1><p>That page does not exist.</p></>}
+        {route.page === 'loading' && <p>Loading…</p>}
+      </main>
+    </div>
+  )
+}
+```
+
+This is intentionally a minimal routing example, not a complete React routing library. It does not
+implement nested layouts, route loaders, code splitting, or scroll restoration.
+
+**SPA hosting requirement:** configure your static host to serve `index.html` for client-side paths
+such as `/about` and `/notes/42`; otherwise refreshing a nested URL may return a server 404. Keep
+API routes on the server and configure the SPA fallback so it does not swallow API 404s.
+
+## Production checklist
+
+Before releasing an application built with uflite, check these items against your deployment:
+
+- [ ] **Run the repository checks:** `bun install --frozen-lockfile`, `bun run build`, `bun test`,
+  `bun run test:types`, `bun run test:package`, and `bun run test:examples`.
+- [ ] **Redact internal errors.** Replace the full entry's default error behavior with a production
+  error hook that logs details privately and returns a generic message for 5xx responses.
+- [ ] **Validate every input at the server.** Check request bodies, path parameters, query values,
+  content types, and body sizes; do not rely on browser-side validation.
+- [ ] **Authorize every protected route.** Generated service routes do not automatically authenticate
+  users. Check both authentication and resource-level authorization for reads and writes.
+- [ ] **Configure CORS intentionally.** Allow only required origins, methods, and headers. CORS is
+  a browser policy, not authentication or authorization.
+- [ ] **Use persistent, shared infrastructure where required.** In-memory records, rate limits,
+  events, and channels are process-local and reset or diverge across instances.
+- [ ] **Set operational limits.** Configure request/body limits, timeouts, rate limits, and upstream
+  limits at the server or platform. A middleware byte limit does not replace transport-level caps.
+- [ ] **Keep secrets in environment/secret management.** Never ship server credentials or private
+  API keys in a browser SPA bundle.
+- [ ] **Verify deployment behavior.** Test real HTTP success and failure paths, browser deep-link
+  refreshes, CORS preflight, shutdown behavior, and the chosen runtime (Bun, Node host, Deno, or Worker).
+- [ ] **Pin and audit dependencies.** Install only optional adapters you actually use and keep the
+  lockfile committed.
+
+These checks are a release checklist, not a claim that every runtime/provider has been tested by the
+project. Confirm your actual deployment target and integrations in CI/staging before shipping.
+
+## Security and limitations
+
+- The full entry's **default** error hook returns `err.message`, including for 5xx. Install a
+  redacting hook for production. The nano `.catch(error)` learning wrapper has the same
+  disclosure risk.
+- The route compiler is deliberately compact: literal regex punctuation such as `.` is
+  interpreted as regex syntax.
+- Authenticate and authorize generated REST routes and storage's raw upload/download routes. A
+  local presign URL grants **no** authorization by itself. Storage's direct service calls need
+  their own policy.
+- In-memory DB, channels, and rate-limit counters are single-process. Persistent DB, a live S3
+  provider, Workers, Deno, and browser UI have **not** been deployed in this test suite.
+- The example projects depend on the built checkout through `file:../..`; **StackBlitz has not
+  been verified**. No one-click launch link is claimed.
+
+See [production readiness notes](PRODUCTION_READINESS_REVIEW.md) for additional release checks.
+
+## Development and bundle size
+
+From a repository checkout:
+
+```bash
+bun install --frozen-lockfile
+bun run build
+bun test
+bun run test:types
+bun run test:package
+bun run test:examples
+bun run bench:size
+```
+
+`test:examples` runs each project's documented `npm install` and `npm start`, then checks real
+success and error HTTP requests. Build first so the local `file:../..` dependency has its
+package entry points.
+
+The benchmark fixture is one browser-target, minified GET route returning a Response (Bun 1.4.3).
+It is **not** an application size or throughput guarantee. See [Size comparison](#size-comparison)
+for the measurements; reproduce them with `bun run bench:size`. Importing full `json` beside nano
+adds to a consumer bundle, so benchmark your actual imports for a meaningful comparison.
+
+## License and contributing
+
+Package metadata identifies [Kethan Surana](https://github.com/kethan) as author and declares
+**ISC**. A matching top-level license file still needs maintainer confirmation; third-party
+texts are in [`licenses/`](licenses/). Report defects via
+[GitHub issues](https://github.com/kethan/uflite/issues). Please run the build, tests, type
+and package checks before contributing.
+
+Inspired by [itty-router](https://github.com/kwhitley/itty-router), [Hono](https://hono.dev),
+and [FeathersJS](https://feathersjs.com). Inspiration is not a runtime dependency.
