@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test'
-import { isObject } from '../utils/index.js'
+import { isObject } from '../src/utils/index.js'
 
 describe('shared utilities', () => {
   it('recognizes non-null, non-array objects', () => {

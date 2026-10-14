@@ -59,6 +59,6 @@ export function publishEvent(publish: Function, eventName: string, options?: Rec
 export function sideEffect(effect: Function, options?: Record<string, any>): Hook;
 export function debug(logger?: any, options?: Record<string, any>): Hook;
 
-export * as predicates from './predicates/index.js';
-export * as transformers from './transformers/index.js';
-export * as resolvers from './resolvers/index.js';
+export * as predicates from '../predicates/index.js';
+export * as transformers from '../transformers/index.js';
+export * as resolvers from '../resolvers/index.js';

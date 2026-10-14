@@ -1,4 +1,4 @@
-import { lead, mount, compile, run } from '../plugins.js'
+import { lead, mount, compile, run } from '../runtime.js'
 
 export const flite = ({ routes = [], before, after, error, ...others } = {}) => {
   const index = {};
@@ -8,15 +8,11 @@ export const flite = ({ routes = [], before, after, error, ...others } = {}) => 
     (index[mt] || (index[mt] = [])).push([rx, hs, order, p]);
   };
 
-  const toMethod = x => x?.toUpperCase ? x.toUpperCase() : x;
-
-
-
   const api = {
     __proto__: new Proxy({}, {
-      get: (_, method, receiver) => (path, ...handlers) => {
+      get: (_, method, receiver) => method == 'then' ? undefined : (path, ...handlers) => {
         if (!method?.toUpperCase) return;
-        const m = toMethod(method);
+        const m = method.toUpperCase();
         if (m == 'USE') {
           const r = path?.routes || path?.call, b = r ? '' : path || '';
           (r ? [path, ...handlers] : handlers).forEach(h =>
@@ -36,7 +32,7 @@ export const flite = ({ routes = [], before, after, error, ...others } = {}) => 
     fetch: async (request, ...args) => {
       const s = request.url, i = s.indexOf('/', 8), j = s.indexOf('?', i), path = s.slice(i, j > -1 ? j : s.length), mt = request.method, mm = mt.toLowerCase(), mode = others.mode;
       let res;
-      request.query = { __proto__: null };
+      const query = request.query = { __proto__: null };
       if (j > -1) {
         const str = s.slice(j + 1);
         if (str) {
@@ -44,7 +40,7 @@ export const flite = ({ routes = [], before, after, error, ...others } = {}) => 
             if (!pair) continue;
             const eq = pair.indexOf('='), k = eq > -1 ? pair.slice(0, eq) : pair, v = eq > -1 ? pair.slice(eq + 1) : '';
             const dk = decodeURIComponent(k.replace(/\+/g, ' ')), dv = decodeURIComponent(v.replace(/\+/g, ' '));
-            request.query[dk] = request.query[dk] ? [].concat(request.query[dk], dv) : dv;
+            query[dk] = query[dk] ? [].concat(query[dk], dv) : dv;
           }
         }
       }

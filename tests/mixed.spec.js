@@ -1,6 +1,6 @@
 
 import { describe, test, expect, beforeEach } from 'bun:test';
-import { flite, json, text, html, error, status } from '../src';
+import { flite, json, text, html, error, status } from '../src/index.js';
 
 
 // ===== 1. BASIC ROUTING =====
@@ -596,7 +596,7 @@ describe('Custom Service Methods', () => {
 
 // ===== 12. SETUP/TEARDOWN =====
 describe('Setup and Teardown', () => {
-  test('Setup called on first service call', async () => {
+  test('Setup runs when app setup is awaited', async () => {
     const app = flite({ error: { all: (err) => error(err) } });
     let setupCalled = false;
 
@@ -609,6 +609,8 @@ describe('Setup and Teardown', () => {
       }
     });
 
+    expect(setupCalled).toBe(false);
+    await app.setup();
     await app.fetch(new Request('http://localhost/test'));
     expect(setupCalled).toBe(true);
   });
@@ -623,7 +625,7 @@ describe('Setup and Teardown', () => {
       },
     });
 
-    app.teardown();
+    await app.teardown();
     expect(teardownCalled).toBe(true);
   });
 });
@@ -1466,7 +1468,7 @@ describe('Router - Services', () => {
     expect(events[0].name).toBe('Alice');
   });
 
-  test('should call setup on service registration', async () => {
+  test('should call setup after app setup', async () => {
     const app = flite();
     let setupCalled = false;
 
@@ -1480,6 +1482,8 @@ describe('Router - Services', () => {
       }
     });
 
+    expect(setupCalled).toBe(false);
+    await app.setup();
     expect(setupCalled).toBe(true);
   });
 
@@ -1496,7 +1500,7 @@ describe('Router - Services', () => {
       }
     });
 
-    app.teardown();
+    await app.teardown();
 
 
     expect(teardownCalled).toBe(true);
@@ -2580,7 +2584,7 @@ describe('Edge cases', async () => {
       teardown: () => { cleaned.push('posts'); }
     });
 
-    app.teardown();
+    await app.teardown();
 
     expect(cleaned).toEqual(['users', 'posts']);
   });

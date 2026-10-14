@@ -87,8 +87,8 @@ const checks = [
     assert.ok(task._id);
     assert.equal((await body(await request(base, '/tasks', { headers }))).data[0].name, 'First task');
     const missing = await request(base, '/tasks/absent', { headers });
-    assert.equal(missing.status, 500); // DBService notFound uses code, not status
-    assert.equal((await body(missing)).error, 'Internal Server Error');
+    assert.equal(missing.status, 404);
+    assert.equal((await body(missing)).error, "No record found for id 'absent'");
     const signed = await request(base, '/storage/presign', { headers, method: 'POST', data: { key: 'notes/hello.txt' } });
     assert.equal(signed.status, 200);
     const signedBody = await body(signed);

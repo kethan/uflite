@@ -1,4 +1,4 @@
-import { status as UfliteError } from '../plugins.js';
+import { status as UfliteError } from '../runtime.js';
 
 export const continueIfMiddleware = next =>
   typeof next === 'function' ? next() : undefined;

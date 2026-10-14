@@ -1,9 +1,9 @@
-// full.d.ts - Complete with services, events, channels
+// Full: response helpers, services, events, and channels.
 
-import type { FliteApp } from '../nano/index.js';
-import type { FliteConfigWithHooks } from '../lite/index.js';
+import type { FliteApp } from './nano/index.js';
+import type { FliteConfigWithHooks } from './lite/index.js';
 
-export * from '../lite/index.js';
+export * from './lite/index.js';
 
 // ============================================
 // RESPONSE HELPERS
@@ -41,8 +41,6 @@ export interface EventsApp {
     emit(event: string, ...args: any[]): this;
 }
 
-export function events<T extends FliteApp>(app: T): T & EventsApp;
-
 // ============================================
 // CHANNELS
 // ============================================
@@ -65,8 +63,6 @@ export interface Channel {
 export interface ChannelsApp {
     channel(name: string): Channel;
 }
-
-export function channels<T extends FliteApp>(app: T): T & ChannelsApp;
 
 // ============================================
 // SERVICES
@@ -144,10 +140,9 @@ export interface ServicesApp {
     service<T = any>(name: string): ServiceWrapper<T>;
     service<T = any>(name: string, service: Service<T>): ServiceWrapper<T>;
     hooks(hooks: ServiceHooks): this;
-    teardown(): this;
+    setup(server?: any): Promise<this>;
+    teardown(server?: any): Promise<this>;
 }
-
-export function services<T extends FliteApp>(app: T): T & ServicesApp;
 
 // ============================================
 // FULL FLITE APP
@@ -156,6 +151,7 @@ export function services<T extends FliteApp>(app: T): T & ServicesApp;
 export type FullFliteApp = FliteApp & EventsApp & ChannelsApp & ServicesApp;
 
 export function flite(config?: FliteConfigWithHooks): FullFliteApp;
+export function run<T = any>(mode?: 0 | 1): (...handlers: Function[]) => (...args: any[]) => Promise<T | undefined>;
 export default flite;
 
-export * from '../src/generic-hooks.js';
+export * from './hooks/types.js';

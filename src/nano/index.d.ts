@@ -1,4 +1,4 @@
-// nano.d.ts - Minimal router only
+// Nano: minimal router only.
 
 export type IRequest = Request & {
     params?: Record<string, string>;
@@ -45,10 +45,9 @@ export interface FliteApp<Req = IRequest> {
     use(path: string, handler: RouteHandler<Req> | FliteApp<Req>): this;
     use(path: string, ...handlers: Array<RouteHandler<Req> | FliteApp<Req>>): this;
 
-    fetch(request: Request, ...args: any[]): Promise<Response | undefined>;
+    // Nano and lite return the raw handler result; only full formats it by default.
+    fetch(request: Request, ...args: any[]): Promise<any>;
 }
-
-export function run<T = any>(mode?: 0 | 1): (...handlers: Function[]) => (...args: any[]) => Promise<T | undefined>;
 
 export function flite<Req = IRequest>(config?: FliteConfig<Req>): FliteApp<Req>;
 export default flite;

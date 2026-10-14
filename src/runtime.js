@@ -2,6 +2,7 @@ export const lead = x => x[0] == '/' ? x : '/' + x;
 export const mount = f => f?.fetch || f;
 export const compile = p => RegExp(`^${p.replace(/\/+(\/|$)/g, '$1').replace(/:(\w+)/g, '(?<$1>[^/]+)').replace(/(\/?)\*/g, '($1.*)?')}/*$`);
 export const norm = n => n.startsWith('/') ? n.slice(1) : n;
+const routeMount = Symbol.for('uflite.routeMount');
 
 export const run = (mode = 0, next, loop, i = 0, result) =>
     (...f) =>
@@ -106,6 +107,7 @@ export const
 
 export const services = (app, m = new Map()) => {
     const ah = { before: {}, after: {}, error: {} };
+    let ready = false;
 
     app.hooks = h => (h.before && Object.assign(ah.before, h.before), h.after && Object.assign(ah.after, h.after), h.error && Object.assign(ah.error, h.error), app);
 
@@ -117,7 +119,6 @@ export const services = (app, m = new Map()) => {
         }
 
         const ev = new Map(), sh = { before: {}, after: {}, error: {} };
-        s.setup?.(app, n);
 
         const runH = async (h, c) => {
             if (app.mode === 1) await run(1)(h)(c);
@@ -125,7 +126,8 @@ export const services = (app, m = new Map()) => {
         };
 
         const call = async (mt, ...a) => {
-            const c = { app, service: s, method: mt, path: n, params: a[a.length - 1] || {} };
+            const pi = mt === 'find' ? 0 : mt === 'get' || mt === 'create' || mt === 'remove' ? 1 : mt === 'patch' || mt === 'update' ? 2 : a.length - 1;
+            const c = { app, service: s, method: mt, path: n, params: a[pi] || {} };
 
             mt !== 'find' && (c.id = a[0]);
             /create|patch|update/.test(mt) && (c.data = a[mt === 'create' ? 0 : 1]);
@@ -177,19 +179,27 @@ export const services = (app, m = new Map()) => {
         m.set(norm(n), w);
 
         const p = lead(n);
+        s[routeMount]?.(app, n);
         s.find && app.GET?.(p, async r => json(await w.find(r.query)));
         s.get && app.GET?.(`${p}/:id`, async r => json(await w.get(r.params.id, r.query)));
         s.create && app.POST?.(p, async r => json(await w.create(await r.json(), r.query)));
         s.patch && app.PATCH?.(`${p}/:id`, async r => json(await w.patch(r.params.id, await r.json(), r.query)));
         s.update && app.PUT?.(`${p}/:id`, async r => json(await w.update(r.params.id, await r.json(), r.query)));
         s.remove && app.DELETE?.(`${p}/:id`, async r => json(await w.remove(r.params.id, r.query)));
+        if (ready) s.setup?.(app, n);
 
         return w;
     };
 
-    app.teardown = () => {
-        for (const [p, w] of m)
-            w.teardown?.(app, p);
+    app.setup = async () => {
+        ready = true;
+        for (const [p, w] of [...m]) await w.setup(app, p);
+        return app;
+    };
+
+    app.teardown = async () => {
+        ready = false;
+        for (const [p, w] of m) await w.teardown(app, p);
         return app;
     };
 

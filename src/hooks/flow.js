@@ -8,7 +8,7 @@
  * runner, adapter, context, error class, or pipeline.
  */
 
-import { continueIfMiddleware, createConfiguredError } from '../internal.js';
+import { continueIfMiddleware, createConfiguredError } from './internal.js';
 
 const asHooks = values => values.flat(Infinity).filter(value => typeof value === 'function');
 

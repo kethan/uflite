@@ -1,4 +1,4 @@
-import { continueIfMiddleware } from '../internal.js';
+import { continueIfMiddleware } from './internal.js';
 
 export const transformResult = (transform, { target = 'result' } = {}) => async (context, next) => {
   context[target] = await transform(context[target], context);

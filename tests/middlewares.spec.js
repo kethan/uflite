@@ -1,6 +1,6 @@
 import { describe, it, expect } from "bun:test";
-import { flite } from "../lite/index.js";
-import { json } from "../plugins.js";
+import { flite } from "../src/lite/index.js";
+import { json } from "../src/runtime.js";
 
 import {
   cors,
@@ -16,7 +16,7 @@ import {
   secureHeaders,
   secureHeadersAfter,
   basicAuth
-} from "../middlewares";
+} from "../src/middlewares.js";
 
 const make = (
   path = "/",

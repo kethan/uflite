@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "bun:test";
 import { flite } from "../src/index.js";
-import { services } from '../plugins.js';
+import { services } from '../src/runtime.js';
 
 const makeRequest = (path, method = "GET", body) =>
     new Request("http://localhost" + path, {
@@ -61,6 +61,43 @@ describe("Services Plugin - Basic CRUD", () => {
 
         const result2 = await users.create({ name: 'Direct' });
         expect(result2).toEqual({ id: 2, name: 'Direct' });
+    });
+
+    it("defaults optional CRUD params to an empty object", async () => {
+        const received = {};
+        const users = app.service('users', {
+            find: async params => (received.find = params, []),
+            get: async (id, params) => (received.get = params, {}),
+            create: async (data, params) => (received.create = params, data),
+            update: async (id, data, params) => (received.update = params, data),
+            patch: async (id, data, params) => (received.patch = params, data),
+            remove: async (id, params) => (received.remove = params, null)
+        });
+
+        await users.find();
+        await users.get('1');
+        await users.create({ name: 'Ada' });
+        await users.update('1', { name: 'Ada' });
+        await users.patch('1', { active: true });
+        await users.remove('1');
+
+        expect(received).toEqual({
+            find: {}, get: {}, create: {}, update: {}, patch: {}, remove: {}
+        });
+    });
+
+    it("preserves explicit CRUD params in hooks and service calls", async () => {
+        const params = { provider: 'internal' };
+        let hookParams;
+        let serviceParams;
+        const users = app.service('users', {
+            create: async (data, received) => (serviceParams = received, data)
+        });
+        users.hooks({ before: { create: [ctx => (hookParams = ctx.params, ctx)] } });
+
+        await users.create({ name: 'Ada' }, params);
+        expect(hookParams).toBe(params);
+        expect(serviceParams).toBe(params);
     });
 
     it("retrieves registered service", async () => {
@@ -406,6 +443,29 @@ describe("Services Plugin - Custom Methods", () => {
         expect(result).toEqual({ sent: true, to: 123, subject: 'Hello' });
     });
 
+    it("keeps custom mount methods available", async () => {
+        const calls = [];
+        const users = app.service('users', {
+            mount: async value => (calls.push(value), value)
+        });
+
+        expect(calls).toEqual([]);
+        expect(await users.mount('custom')).toBe('custom');
+        expect(calls).toEqual(['custom']);
+    });
+
+    it("uses a trailing argument as params for custom methods", async () => {
+        const params = { provider: 'internal' };
+        let hookParams;
+        const users = app.service('users', {
+            sendEmail: async data => data
+        });
+        users.hooks({ before: { sendEmail: [ctx => (hookParams = ctx.params, ctx)] } });
+
+        await users.sendEmail({ to: 'ada@example.test' }, params);
+        expect(hookParams).toBe(params);
+    });
+
     it("custom methods go through hooks", async () => {
         const calls = [];
         const users = app.service('users', {
@@ -433,28 +493,92 @@ describe("Services Plugin - Lifecycle", () => {
         app = services(flite({ mode: 0 }));
     });
 
-    it("calls setup on service registration", async () => {
+    it("awaits setup sequentially after services are registered", async () => {
         const calls = [];
-        const userService = {
-            setup: (app, name) => calls.push(`setup:${name}`),
-            find: async () => []
-        };
+        let users;
+        let posts;
 
-        app.service('users', userService);
-        expect(calls).toEqual(['setup:users']);
+        users = app.service('users', {
+            setup: async (serviceApp, path) => {
+                calls.push(`start:${path}`);
+                await Promise.resolve();
+                expect(serviceApp.service(path)).toBe(users);
+                calls.push(`end:${path}`);
+            },
+            find: async () => []
+        });
+        posts = app.service('posts', {
+            setup: async (serviceApp, path) => {
+                calls.push(`start:${path}`);
+                await Promise.resolve();
+                expect(serviceApp.service(path)).toBe(posts);
+                calls.push(`end:${path}`);
+            },
+            find: async () => []
+        });
+
+        expect(calls).toEqual([]);
+        expect(await app.setup()).toBe(app);
+        expect(calls).toEqual([
+            'start:users', 'end:users',
+            'start:posts', 'end:posts'
+        ]);
     });
 
-    it("calls teardown on app.teardown()", async () => {
+    it("sets up services registered after app setup", async () => {
+        await app.setup();
         const calls = [];
-        const userService = {
-            teardown: (app, name) => { calls.push(`teardown:${name}`) },
+
+        app.service('late', {
+            setup: (serviceApp, path) => calls.push(`${path}:${serviceApp === app}`),
             find: async () => []
-        };
+        });
 
-        const users = app.service('users', userService);
-        app.teardown();
+        expect(calls).toEqual(['late:true']);
+    });
 
-        expect(calls).toEqual(['teardown:users']);
+    it("awaits teardown sequentially and returns the app", async () => {
+        const calls = [];
+        app.service('users', {
+            teardown: async () => {
+                calls.push('start:users');
+                await Promise.resolve();
+                calls.push('end:users');
+            },
+            find: async () => []
+        });
+        app.service('posts', {
+            teardown: async () => {
+                calls.push('start:posts');
+                await Promise.resolve();
+                calls.push('end:posts');
+            },
+            find: async () => []
+        });
+
+        const teardown = app.teardown();
+        expect(typeof teardown.then).toBe('function');
+        expect(await teardown).toBe(app);
+        expect(calls).toEqual([
+            'start:users', 'end:users',
+            'start:posts', 'end:posts'
+        ]);
+    });
+
+    it("propagates async lifecycle errors", async () => {
+        app.service('users', {
+            setup: async () => { throw new Error('setup failed'); },
+            teardown: async () => { throw new Error('teardown failed'); },
+            find: async () => []
+        });
+
+        let setupError;
+        try { await app.setup(); } catch (error) { setupError = error; }
+        expect(setupError?.message).toBe('setup failed');
+
+        let teardownError;
+        try { await app.teardown(); } catch (error) { teardownError = error; }
+        expect(teardownError?.message).toBe('teardown failed');
     });
 
     // it('Global middleware', async () => {

@@ -7,8 +7,8 @@ import {
   S3Client
 } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-import { createLocalStorageService } from './localStorage.js'
-import { isObject } from '../utils/isObject.js'
+import { createLocalStorageService } from './local-storage.js'
+import { isObject } from '../utils/is-object.js'
 
 const DEFAULT_EXPIRES_IN = 900
 const MAX_EXPIRES_IN = 60 * 60 * 24 * 7
@@ -201,7 +201,7 @@ const createS3StorageService = ({
     presignUpload,
     presignDownload,
 
-    setup(app, name) {
+    [Symbol.for('uflite.routeMount')](app, name) {
       const path = `/${String(name).replace(/^\/+|\/+$/g, '')}`
       const serviceForRequest = () => app.service(name)
       const paramsForRequest = request => ({ ...request.query, request })

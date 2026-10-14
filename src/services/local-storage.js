@@ -1,4 +1,4 @@
-import { isObject } from '../utils/isObject.js'
+import { isObject } from '../utils/is-object.js'
 
 const DEFAULT_BASE_PATH = './data/files'
 const DEFAULT_MAX_FILE_SIZE = 25 * 1024 * 1024
@@ -243,7 +243,7 @@ export const createLocalStorageService = ({
         expiresIn: null
       }
     },
-    setup(app, name) {
+    [Symbol.for('uflite.routeMount')](app, name) {
       const path = `/${String(name).replace(/^\/+|\/+$/g, '')}`
       const serviceForRequest = () => app.service(name)
       const paramsForRequest = request => ({ ...request.query, request })

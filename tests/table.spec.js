@@ -8,8 +8,8 @@ import {
   updateOps
 } from 'umosql'
 import { createSQLAdapter } from 'umosql/schemaless'
-import { createACL } from '../services/acl.js'
-import { createTableService } from '../services/table.js'
+import { createACL } from '../src/services/acl.js'
+import { createTableService } from '../src/services/table.js'
 import { flite } from '../src/index.js'
 
 const databases = new Set()
