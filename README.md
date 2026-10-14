@@ -136,13 +136,13 @@ Measured with `bun run bench:size` using Bun 1.4.3: browser-target, minified, bu
 
 | Entry / router | Minified | Gzip | Included in fixture |
 | :--- | ---: | ---: | :--- |
-| `uflite/nano` | 1,385 B | 799 B | Routing only |
-| `uflite/lite` | 2,470 B | 1,251 B | Routing + global request hooks |
-| `uflite` | 6,134 B | 2,690 B | Full router + response/service framework |
+| `uflite/nano` | 1,363 B | 797 B | Routing only |
+| `uflite/lite` | 2,442 B | 1,249 B | Routing + global request hooks |
+| `uflite` | 6,330 B | 2,764 B | Full router + response/service framework |
 | Hono 4.10.6 | 19,026 B | 7,623 B | Same one-route fixture |
 | itty-router 4.2.2 | 1,122 B | 689 B | Same one-route fixture |
 
-Nano is 110 B larger gzip than itty-router in this fixture. Lite/full are smaller than Hono in this fixture. These comparisons are only meaningful for the same benchmark and toolchain; importing `json` from full alongside nano/lite increases the resulting bundle. Reproduce the numbers with `bun run bench:size`.
+Nano is 108 B larger gzip than itty-router in this fixture. Lite/full are smaller than Hono in this fixture. These comparisons are only meaningful for the same benchmark and toolchain; importing `json` from full alongside nano/lite increases the resulting bundle. Reproduce the numbers with `bun run bench:size`.
 
 ## Core concepts and API surface
 
@@ -724,7 +724,8 @@ import { flite, response, text, html, json, error, status, run } from 'uflite'
 app.service(name, implementation) → ServiceWrapper
 app.service(name)                  → registered ServiceWrapper
 app.hooks({ before?, after?, error? }) → app
-app.teardown()                     → app
+app.setup()                        → Promise<app>
+app.teardown()                     → Promise<app>
 
 service.hooks({ before?, after?, error? }) → service
 service.on(event, listener)         → service
@@ -741,6 +742,8 @@ service.remove(id, params?)
 
 A service implementation can also expose custom methods. They are available on the wrapper and
 can have service hooks, but do not receive generated REST routes unless you register those routes.
+For custom methods, a supplied `params` object is the final argument; pass `{}` when a method has
+business arguments but no additional params, so hooks receive an empty context object.
 
 For hook signatures and longer worked examples, see `docs/HOOK_SPEC.md` and
 `docs/REAL_WORLD_HOOKS.md`. The public declarations live beside the source modules under `src/`.
@@ -1086,8 +1089,8 @@ listeners do not enter the service error-hook path described above. A REST reque
 be handled by the router's request-level error hook.
 
 In default `mode: 0`, hooks advance automatically. In `mode: 1`, each hook must call `next()` to
-continue. Service setup runs when the service is registered; `app.teardown()` invokes teardown
-but does **not** await asynchronous cleanup.
+continue. Call `await app.setup()` after registering services and before accepting requests; it
+awaits service setup in registration order. `await app.teardown()` awaits cleanup in that order.
 
 ### Service events and custom methods
 
@@ -1188,10 +1191,9 @@ With pagination enabled, `find()` returns `{ total, limit, skip, data }`. The de
 collection is not persistent and is lost when the process exits. Pass a `getCollection` function
 to connect the service to a collection supplied by your chosen adapter.
 
-DBService's missing-record error uses `code: 404`, not `status: 404`. If an HTTP endpoint must
-return 404 for a missing record, map that error to an HTTP status in your route or error policy.
-Also note that service REST query params are flat by default; the direct call above passes the
-nested `params.query` structure DBService expects.
+DBService marks missing records with both `code: 404` and `status: 404`, so the default REST
+error handler returns HTTP 404. Also note that service REST query params are flat by default;
+the direct call above passes the nested `params.query` structure DBService expects.
 
 ### Authentication and ACL
 
@@ -1868,6 +1870,10 @@ flow; it is separate from service-context hooks.
 | `secureHeaders(options?)` | Security response headers | `secureHeadersAfter` |
 | `requestId(options?)` | Request ID generation | `requestIdAfter` |
 
+`basicAuth` uses the Web API global `atob`; check that it is available in legacy or custom Fetch
+runtimes before enabling this middleware. It is available in Bun, Node 18+, and common modern
+browser/worker runtimes.
+
 Example: request ID generation and response headers:
 
 ```js
@@ -1958,7 +1964,8 @@ the method precedes `all`.
 Implementation failures enter service.error.method → service.error.all → app.error.method →
 app.error.all and are rethrown. Before/after-hook failures bypass **service** error hooks;
 request-level hooks may handle a failed REST route. In mode 1, hooks must call `next()` to
-continue. Async service `setup`/`teardown` are not awaited by registration/`app.teardown()`.
+continue. Service `setup` runs through `await app.setup()` after registration; `await app.teardown()`
+waits for service cleanup.
 
 ```js
 import { flite, json } from 'uflite'

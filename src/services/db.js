@@ -37,7 +37,7 @@ const toProjection = value => {
 
 const notFound = id => {
   const error = new Error(`No record found for id '${id}'`)
-  error.code = 404
+  error.code = error.status = 404
   error.name = 'NotFound'
   throw error
 }

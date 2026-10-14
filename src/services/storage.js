@@ -201,7 +201,7 @@ const createS3StorageService = ({
     presignUpload,
     presignDownload,
 
-    setup(app, name) {
+    [Symbol.for('uflite.routeMount')](app, name) {
       const path = `/${String(name).replace(/^\/+|\/+$/g, '')}`
       const serviceForRequest = () => app.service(name)
       const paramsForRequest = request => ({ ...request.query, request })

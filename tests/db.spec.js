@@ -1,5 +1,6 @@
 import { describe, test, expect } from 'bun:test'
 import { createDBService } from '../src/services/db.js'
+import { flite } from '../src/index.js'
 import { collection } from 'umosql/memory'
 
 describe('DBService', () => {
@@ -29,6 +30,15 @@ describe('DBService', () => {
       expect(() => createDBService(undefined, { initialData: {} })).toThrow('initialData')
       expect(() => createDBService({})).toThrow('getCollection')
     })
+  })
+
+  test('returns HTTP 404 for a missing REST record', async () => {
+    const app = flite()
+    app.service('users', createDBService())
+
+    const response = await app.fetch(new Request('http://localhost/users/missing'))
+    expect(response.status).toBe(404)
+    expect(await response.json()).toMatchObject({ status: 404 })
   })
 
   describe('find', () => {
@@ -401,6 +411,7 @@ describe('DBService', () => {
         throw new Error('Expected get to throw')
       } catch (error) {
         expect(error.code).toBe(404)
+        expect(error.status).toBe(404)
         expect(error.name).toBe('NotFound')
       }
     })
@@ -508,6 +519,7 @@ describe('DBService', () => {
         })
       ).rejects.toMatchObject({
         code: 404,
+        status: 404,
         name: 'NotFound'
       })
     })
@@ -577,6 +589,7 @@ describe('DBService', () => {
         })
       ).rejects.toMatchObject({
         code: 404,
+        status: 404,
         name: 'NotFound'
       })
     })
@@ -685,6 +698,7 @@ describe('DBService', () => {
         service.remove(999)
       ).rejects.toMatchObject({
         code: 404,
+        status: 404,
         name: 'NotFound'
       })
     })

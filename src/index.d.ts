@@ -140,7 +140,8 @@ export interface ServicesApp {
     service<T = any>(name: string): ServiceWrapper<T>;
     service<T = any>(name: string, service: Service<T>): ServiceWrapper<T>;
     hooks(hooks: ServiceHooks): this;
-    teardown(): this;
+    setup(server?: any): Promise<this>;
+    teardown(server?: any): Promise<this>;
 }
 
 // ============================================

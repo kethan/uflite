@@ -10,7 +10,7 @@ export const flite = ({ routes = [], before, after, error, ...others } = {}) => 
 
   const api = {
     __proto__: new Proxy({}, {
-      get: (_, method, receiver) => (path, ...handlers) => {
+      get: (_, method, receiver) => method == 'then' ? undefined : (path, ...handlers) => {
         if (!method?.toUpperCase) return;
         const m = method.toUpperCase();
         if (m == 'USE') {
