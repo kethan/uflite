@@ -3,8 +3,6 @@ import { flite } from 'uflite/nano'
 
 export const app = flite()
 
-app.get('/', () => '🏠 Vue Home')
-app.get('/about', () => 'ℹ️ Vue About')
 
 export function useRouter(initial) {
   const view = ref(initial)

@@ -4,8 +4,6 @@ import { flite } from 'uflite/nano'
 
 export const app = flite()
 
-app.get('/', () => '🏠 Svelte Home')
-app.get('/about', () => 'ℹ️ Svelte About')
 
 export function useRouter(initial) {
   const view = writable(initial)
