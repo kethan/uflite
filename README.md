@@ -2241,6 +2241,27 @@ It is **not** an application size or throughput guarantee. See [Size comparison]
 for the measurements; reproduce them with `bun run bench:size`. Importing full `json` beside nano
 adds to a consumer bundle, so benchmark your actual imports for a meaningful comparison.
 
+## Framework routers (SPA)
+
+Dead-simple, fetch-first routers for popular UI frameworks live in `examples/browser-*.js`.
+Each example exports an `app` (a `uflite/nano` instance) and a small `useRouter`
+hook/composable that wires navigation, `popstate`, and link-click interception.
+
+- Vanilla JS: `examples/browser-spa.js` / `examples/browser-vanilla.js`
+- React: `examples/browser-react.js`
+- Vue: `examples/browser-vue.js`
+- Solid: `examples/browser-solid.js`
+- Svelte: `examples/browser-svelte.js`
+- Angular: `examples/browser-angular.js`
+- Ulive: `examples/browser-ulive.js`
+- Uele: `examples/browser-uele.js`
+- Preact (native signals): `examples/browser-preact.js`
+- Qwik: `examples/browser-qwik.js`
+
+A framework-agnostic helper is available as `uflite/browser` (aliases: `uflite/spa`,
+`uflite/frameworks`, `uflite/routers`) exposing `createSPA`, `createRouter`, and `useRouter`.
+
+
 ## License and contributing
 
 Package metadata identifies [Kethan Surana](https://github.com/kethan) as author and declares
