@@ -1,38 +1,32 @@
-// Minimal solid router example using uflite/nano
-import { flite } from "uflite/nano"
+import { createSignal, onMount, onCleanup } from 'solid-js'
+import { flite } from 'uflite/nano'
 
 export const app = flite()
 
-const Home = () => ({ type: 'div', children: ['Home'] })
-const User = ({ id }) => ({ type: 'div', children: ['User ' + id] })
-const NotFound = () => ({ type: 'div', children: ['404'] })
+export function useRouter(InitialComponent) {
+  const [view, setView] = createSignal(InitialComponent)
 
-app.get('/', () => Home)
-app.get('/user/:id', (req) => {
-  const Bound = () => User({ id: req.params.id })
-  return Bound
-})
-app.all('*', () => NotFound)
-
-export function useRouter(initial) {
-  const state = { view: initial }
-  const setView = (v) => { state.view = v }
   const navigate = async (path) => {
-    try { setView(await app.fetch(new Request(location.origin + path))) }
-    catch { setView(NotFound) }
+    try { setView(await app.fetch(new Request(window.location.origin + path))) }
+    catch { setView(() => <h1>404 - Not Found</h1>) }
   }
+
+  const sync = () => navigate(window.location.pathname + window.location.search)
+  onMount(() => {
+    window.addEventListener('popstate', sync)
+    sync()
+  })
+  onCleanup(() => window.removeEventListener('popstate', sync))
+
   const linkProps = {
     onClick: (e) => {
       const a = e.target.closest('a')
-      if (!a) return
-      const href = a.getAttribute('href')
-      if (!href || href.startsWith('http')) return
+      if (!a || a.getAttribute('href')?.startsWith('http')) return
       e.preventDefault()
-      history.pushState(null, '', href)
-      navigate(href)
+      window.history.pushState(null, '', a.getAttribute('href'))
+      navigate(a.getAttribute('href'))
     }
   }
-  navigate(location.pathname + location.search)
-  window.addEventListener('popstate', () => navigate(location.pathname + location.search))
-  return [() => state.view, linkProps]
+
+  return [view, linkProps]
 }
