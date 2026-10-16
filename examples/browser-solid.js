@@ -3,6 +3,9 @@ import { flite } from 'uflite/nano'
 
 export const app = flite()
 
+app.get('/', () => <h1>🏠 Solid Home</h1>)
+app.get('/about', () => <h1>ℹ️ Solid About</h1>)
+
 export function useRouter(InitialComponent) {
   const [view, setView] = createSignal(InitialComponent)
 

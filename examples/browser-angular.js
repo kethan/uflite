@@ -3,6 +3,9 @@ import { flite } from 'uflite/nano'
 
 export const app = flite()
 
+app.get('/', () => '🏠 Angular Home')
+app.get('/about', () => 'ℹ️ Angular About')
+
 export function useRouter(initial) {
   const view = signal(initial)
 

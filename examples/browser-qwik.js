@@ -3,6 +3,9 @@ import { flite } from 'uflite/nano'
 
 export const app = flite()
 
+app.get('/', () => <h1>🏠 Qwik Home</h1>)
+app.get('/about', () => <h1>ℹ️ Qwik About</h1>)
+
 export function useRouter(initial) {
   const view = useSignal(initial)
 

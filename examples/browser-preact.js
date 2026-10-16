@@ -5,6 +5,9 @@ import { flite } from 'uflite/nano'
 
 export const app = flite()
 
+app.get('/', () => <h1>🏠 Preact Home</h1>)
+app.get('/about', () => <h1>ℹ️ Preact About</h1>)
+
 export function useRouter(InitialComponent) {
   // Store the active component inside a native Preact Signal primitive
   const view = signal(InitialComponent)
