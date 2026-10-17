@@ -1,4 +1,4 @@
-import { app, useRouter } from './useRouter-preact'
+import { app, useRouter } from '../routers/preact'
 
 app.get('/', () => 'Home View')
 app.get('/about', () => 'About View')

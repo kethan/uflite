@@ -1,4 +1,4 @@
-import { app, useRouter } from './useRouter-vue'
+import { app, useRouter } from '../routers/vue'
 
 app.get('/', () => 'Home View')
 app.get('/about', () => 'About View')

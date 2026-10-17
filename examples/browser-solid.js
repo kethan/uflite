@@ -1,4 +1,4 @@
-import { app, useRouter } from './useRouter-solid'
+import { app, useRouter } from '../routers/solid'
 
 app.get('/', () => 'Home View')
 app.get('/about', () => 'About View')

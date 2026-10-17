@@ -1,4 +1,4 @@
-import { app, useRouter } from './useRouter-qwik'
+import { app, useRouter } from '../routers/qwik'
 
 app.get('/', () => 'Home View')
 app.get('/about', () => 'About View')

@@ -1,4 +1,4 @@
-import { app, useRouter } from './useRouter-ulive'
+import { app, useRouter } from '../routers/ulive'
 
 app.get('/', () => 'Home View')
 app.get('/about', () => 'About View')

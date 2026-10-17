@@ -1,4 +1,4 @@
-import { app, useRouter } from './useRouter-react'
+import { app, useRouter } from '../routers/react'
 
 app.get('/', () => 'Home View')
 app.get('/about', () => 'About View')

@@ -1,4 +1,4 @@
-import { app, useRouter } from './useRouter-angular'
+import { app, useRouter } from '../routers/angular'
 
 app.get('/', () => 'Home View')
 app.get('/about', () => 'About View')
