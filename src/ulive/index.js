@@ -1,3 +1,2 @@
-export * from '../browser.js'
-export { default } from '../browser.js'
-export { flite } from '../nano/index.js'
+export * from '../ulive.js'
+export { default } from '../ulive.js'

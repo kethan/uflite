@@ -1,3 +1,2 @@
-export * from '../browser.js'
-export { default } from '../browser.js'
-export { flite } from '../nano/index.js'
+export * from '../vue.js'
+export { default } from '../vue.js'
