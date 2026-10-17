@@ -16,7 +16,6 @@
         "rollup-plugin-bundle-size": "^1.0.3",
         "trouter": "^3.2.0",
         "typescript": "^5.9.3",
-        "uele": "^0.10.2",
         "umosql": "0.3.1",
         "uqry": "^0.1.1",
       },
@@ -257,13 +256,9 @@
 
     "typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
 
-    "uele": ["uele@0.10.2", "", { "dependencies": { "usub": "^0.9.0" }, "peerDependencies": { "@preact/signals-core": "^1.14.4", "@tanstack/store": "^0.11.2", "@vue/reactivity": "^3.5.44", "alien-signals": "^3.2.1", "domdiff": "^2.2.2", "fast-array-diff": "^1.1.0", "mobx": "^7.0.6", "morphdom": "^2.7.8", "nanomorph": "^5.4.3", "nanostores": "^1.5.5", "rxjs": "^7.8.2", "s-js": "^0.4.9", "solid-js": "^1.9.17", "swapdom": "^1.2.1", "udomdiff": "^1.1.2", "ulive": "^1.0.7", "usignal": "^0.10.0" }, "optionalPeers": ["@preact/signals-core", "@tanstack/store", "@vue/reactivity", "alien-signals", "domdiff", "fast-array-diff", "mobx", "morphdom", "nanomorph", "nanostores", "rxjs", "s-js", "solid-js", "swapdom", "udomdiff", "ulive", "usignal"] }, "sha512-x8uYe4QLzm9hk1DEEecphkBCdlZlwqjW7MOTPG7ZHVcDfxG7nRRU261xqVh/XguIWb6G4QAnpodca4bWyLvHaA=="],
-
     "umosql": ["umosql@0.3.1", "", {}, "sha512-s9jiCBcAPrbP6ft27IY6Tf4UeSxCsPW4pSL+Xdq3dwF5uZXMXPFBeZa53k7yS4x4/+T6l2RIGSKYIq0UMXKNxA=="],
 
     "uqry": ["uqry@0.1.2", "", {}, "sha512-gP/8XkHFrdsaQt9yBGW9N8cERSCIhYvYbBk1Z0NVXePZOiGOc2RLIT+tNVIShl0vAZNf9BUHNtAj23BLaknS8A=="],
-
-    "usub": ["usub@0.9.0", "", {}, "sha512-FTorvtYVzQQvuTqRZTnAMZra0nArZdqGZF4hLOdKNJ34Ph7Ev2BeeoP+XFjfqdXIpzTDjlW1cHRpACzfuQNIUQ=="],
 
     "zod": ["zod@4.6.5", "", {}, "sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q=="],
 
