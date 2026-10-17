@@ -1,44 +1,38 @@
-// Assumes React & ReactDOM are loaded globally via CDN
-import { flite } from "uflite/lite"
+import React from 'react'
+import { app, useRouter } from './useRouter-react'
 
-const app = flite()
+// --- ROUTE DEFINITIONS ---
+app.get('/', () => <h1>🏠 Home View</h1>)
+app.get('/about', () => <h1>ℹ️ About View</h1>)
+app.get('/user/:id', (req) => (
+  <h1>👤 User: {req.params.id} (Theme: {req.query?.theme || 'light'})</h1>
+))
 
-const Home = () => React.createElement('div', null, [
-  React.createElement('h1', { key: 1 }, 'Home'),
-  React.createElement('p', { key: 2 }, React.createElement('a', { href: '/user/42' }, 'Go to user'))
-])
-
-const User = ({ id }) => React.createElement('div', null, [
-  React.createElement('h1', { key: 1 }, 'User ' + id),
-  React.createElement('p', { key: 2 }, React.createElement('a', { href: '/' }, 'Back'))
-])
-
-app.get('/', () => Home)
-app.get('/user/:id', (req) => {
-  const Bound = () => React.createElement(User, { id: req.params.id })
-  return Bound
+// Guard Middleware
+app.use('/admin', (req, res, next) => {
+  const isLoggedOut = true
+  return isLoggedOut ? <h1 style={{ color: 'red' }}>🔒 403 Forbidden</h1> : next()
 })
+app.get('/admin/dashboard', () => <h1>Admin Area</h1>)
 
-const mount = (Comp) => {
-  const rootEl = document.getElementById('root')
-  const el = React.createElement(Comp)
-  // React 18: createRoot if available, else render
-  if (ReactDOM.createRoot) ReactDOM.createRoot(rootEl).render(el)
-  else ReactDOM.render(el, rootEl)
+// --- MAIN COMPONENT ---
+export default function App() {
+  // Pass the default fallback component to the hook
+  const [view, linkProps] = useRouter(<h1>Loading...</h1>)
+
+  return (
+    // Spreading linkProps onto a wrapper handles intercepting all internal anchor clicks automatically
+    <div {...linkProps} style={{ display: 'flex', fontFamily: 'sans-serif', gap: '20px' }}>
+      <nav style={{ width: '150px', background: '#eee', padding: '10px' }}>
+        <a href="/" style={{ display: 'block' }}>Home</a>
+        <a href="/about" style={{ display: 'block' }}>About</a>
+        <a href="/user/99?theme=dark" style={{ display: 'block' }}>User 99</a>
+        <a href="/admin/dashboard" style={{ display: 'block' }}>Admin</a>
+      </nav>
+
+      <main style={{ padding: '10px' }}>
+        {view}
+      </main>
+    </div>
+  )
 }
-
-const ErrorView = () => React.createElement('div', null, 'Error')
-
-document.addEventListener('click', (e) => {
-  const a = e.target.closest('a')
-  if (!a) return
-  const href = a.getAttribute('href')
-  if (!href || href.startsWith('http')) return
-  e.preventDefault()
-  history.pushState(null, '', href)
-  app.fetch(new Request(location.origin + href)).then((Comp) => mount(Comp)).catch(() => mount(ErrorView))
-})
-
-window.addEventListener('popstate', () => app.fetch(new Request(location.origin + location.pathname)).then((Comp) => mount(Comp)).catch(() => mount(ErrorView)))
-
-app.fetch(new Request(location.origin + location.pathname)).then((Comp) => mount(Comp)).catch(() => mount(ErrorView))
