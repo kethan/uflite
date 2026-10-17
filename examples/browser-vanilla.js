@@ -1,9 +1,18 @@
 import { app, useRouter } from './useRouter-vanilla'
 
-app.get('/', () => 'Home View')
-app.get('/about', () => 'About View')
+// --- ROUTE DEFINITIONS ---
+app.get('/', () => '🏠 Home View')
+app.get('/about', () => 'ℹ️ About View')
+app.get('/user/:id', (req) => `👤 User: ${req.params.id}`)
 
-export default function App() {
-  const [view, linkProps] = useRouter('Loading...')
-  return { view, linkProps }
-}
+// Guard Middleware
+app.use('/admin', (req, res, next) => {
+  const isLoggedOut = true
+  return isLoggedOut ? '🔒 403 Forbidden' : next()
+})
+app.get('/admin/dashboard', () => 'Admin Area')
+
+// --- MAIN ---
+const root = document.getElementById('app')
+const { navigate } = useRouter(root, 'Loading...')
+export { navigate }
