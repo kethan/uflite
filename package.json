@@ -119,77 +119,7 @@
 			"import": "./src/services/acl.js",
 			"default": "./src/services/acl.js"
 		},
-		"./package.json": "./package.json",
-		"./browser": {
-			"types": "./src/browser.d.ts",
-			"import": "./src/browser.js",
-			"default": "./src/browser.js"
-		},
-		"./spa": {
-			"types": "./src/spa.d.ts",
-			"import": "./src/spa.js",
-			"default": "./src/spa.js"
-		},
-		"./frameworks": {
-			"types": "./src/frameworks.d.ts",
-			"import": "./src/frameworks.js",
-			"default": "./src/frameworks.js"
-		},
-		"./routers": {
-			"types": "./src/routers.d.ts",
-			"import": "./src/routers.js",
-			"default": "./src/routers.js"
-		},
-		"./react": {
-			"types": "./src/react.d.ts",
-			"import": "./src/react.js",
-			"default": "./src/react.js"
-		},
-		"./vue": {
-			"types": "./src/vue.d.ts",
-			"import": "./src/vue.js",
-			"default": "./src/vue.js"
-		},
-		"./solid": {
-			"types": "./src/solid.d.ts",
-			"import": "./src/solid.js",
-			"default": "./src/solid.js"
-		},
-		"./svelte": {
-			"types": "./src/svelte.d.ts",
-			"import": "./src/svelte.js",
-			"default": "./src/svelte.js"
-		},
-		"./angular": {
-			"types": "./src/angular.d.ts",
-			"import": "./src/angular.js",
-			"default": "./src/angular.js"
-		},
-		"./ulive": {
-			"types": "./src/ulive.d.ts",
-			"import": "./src/ulive.js",
-			"default": "./src/ulive.js"
-		},
-		"./vanilla": {
-			"types": "./src/vanilla.d.ts",
-			"import": "./src/vanilla.js",
-			"default": "./src/vanilla.js"
-		},
-		"./uele": {
-			"types": "./src/uele.d.ts",
-			"import": "./src/uele.js",
-			"default": "./src/uele.js"
-		},
-		"./preact": {
-			"types": "./src/preact.d.ts",
-			"import": "./src/preact.js",
-			"default": "./src/preact.js"
-		},
-		"./qwik": {
-			"types": "./src/qwik.d.ts",
-			"import": "./src/qwik.js",
-			"default": "./src/qwik.js"
-		}
+		"./package.json": "./package.json"
 	},
 	"files": [
 		"dist",
