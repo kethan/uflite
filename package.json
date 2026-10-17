@@ -228,7 +228,8 @@
 		"@aws-sdk/client-s3": "^3.1147.0",
 		"@aws-sdk/s3-request-presigner": "^3.1147.0",
 		"umosql": "0.3.1",
-		"typescript": "^5.9.3"
+		"typescript": "^5.9.3",
+		"uele": "^0.10.2"
 	},
 	"keywords": [
 		"router",

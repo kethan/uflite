@@ -2243,24 +2243,28 @@ adds to a consumer bundle, so benchmark your actual imports for a meaningful com
 
 ## Framework routers (SPA)
 
-Dead-simple, fetch-first routers for popular UI frameworks live in `examples/browser-*.js`.
-Each example exports an `app` (a `uflite/nano` instance) and a small `useRouter`
-hook/composable that wires navigation, `popstate`, and link-click interception.
+A single, signal-agnostic SPA router lives in `routers/` (powered by `uele/reactive` + `uflite/nano`).
+It works with any signal preset (Preact, Solid, Vue, Svelte, Angular, ...).
 
-- Vanilla JS: `examples/browser-spa.js` / `examples/browser-vanilla.js`
-- React: `examples/browser-react.js`
-- Vue: `examples/browser-vue.js`
-- Solid: `examples/browser-solid.js`
-- Svelte: `examples/browser-svelte.js`
-- Angular: `examples/browser-angular.js`
-- Ulive: `examples/browser-ulive.js`
-- Uele: `examples/browser-uele.js`
-- Preact (native signals): `examples/browser-preact.js`
-- Qwik: `examples/browser-qwik.js`
+```js
+import { usePreactSignals } from 'uele/adapters/preact'
+import { h } from 'uele'
+import { flite } from 'uflite/nano'
+import { createRouter, useRouter } from '../routers'
 
-A framework-agnostic helper is available as `uflite/browser` (aliases: `uflite/spa`,
-`uflite/frameworks`, `uflite/routers`) exposing `createSPA`, `createRouter`, and `useRouter`.
+usePreactSignals()
 
+export const app = flite()
+app.get('/', () => h('h1', null, 'Home'))
+app.get('/about', () => h('h1', null, 'About'))
+
+export function App() {
+  const [view, linkProps] = useRouter(app, h('h1', null, 'Loading...'))
+  return h('main', linkProps(), view)
+}
+```
+
+See `examples/browser-uele.js` for a complete example.
 
 ## License and contributing
 
