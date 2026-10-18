@@ -119,7 +119,77 @@
 			"import": "./src/services/acl.js",
 			"default": "./src/services/acl.js"
 		},
-		"./package.json": "./package.json"
+		"./package.json": "./package.json",
+		"./browser": {
+			"types": "./src/browser.d.ts",
+			"import": "./src/browser.js",
+			"default": "./src/browser.js"
+		},
+		"./spa": {
+			"types": "./src/spa.d.ts",
+			"import": "./src/spa.js",
+			"default": "./src/spa.js"
+		},
+		"./frameworks": {
+			"types": "./src/frameworks.d.ts",
+			"import": "./src/frameworks.js",
+			"default": "./src/frameworks.js"
+		},
+		"./routers": {
+			"types": "./src/routers.d.ts",
+			"import": "./src/routers.js",
+			"default": "./src/routers.js"
+		},
+		"./react": {
+			"types": "./src/react.d.ts",
+			"import": "./src/react.js",
+			"default": "./src/react.js"
+		},
+		"./vue": {
+			"types": "./src/vue.d.ts",
+			"import": "./src/vue.js",
+			"default": "./src/vue.js"
+		},
+		"./solid": {
+			"types": "./src/solid.d.ts",
+			"import": "./src/solid.js",
+			"default": "./src/solid.js"
+		},
+		"./svelte": {
+			"types": "./src/svelte.d.ts",
+			"import": "./src/svelte.js",
+			"default": "./src/svelte.js"
+		},
+		"./angular": {
+			"types": "./src/angular.d.ts",
+			"import": "./src/angular.js",
+			"default": "./src/angular.js"
+		},
+		"./ulive": {
+			"types": "./src/ulive.d.ts",
+			"import": "./src/ulive.js",
+			"default": "./src/ulive.js"
+		},
+		"./vanilla": {
+			"types": "./src/vanilla.d.ts",
+			"import": "./src/vanilla.js",
+			"default": "./src/vanilla.js"
+		},
+		"./uele": {
+			"types": "./src/uele.d.ts",
+			"import": "./src/uele.js",
+			"default": "./src/uele.js"
+		},
+		"./preact": {
+			"types": "./src/preact.d.ts",
+			"import": "./src/preact.js",
+			"default": "./src/preact.js"
+		},
+		"./qwik": {
+			"types": "./src/qwik.d.ts",
+			"import": "./src/qwik.js",
+			"default": "./src/qwik.js"
+		}
 	},
 	"files": [
 		"dist",
@@ -144,21 +214,30 @@
 		"test:package": "node scripts/check-package.js",
 		"test:examples": "node scripts/check-examples.js"
 	},
-	"dependencies": {},
 	"devDependencies": {
-		"better-auth": "^1.7.7",
+		"@angular/core": "^22.2.3",
+		"@aws-sdk/client-s3": "^3.1147.0",
+		"@aws-sdk/s3-request-presigner": "^3.1147.0",
+		"@builder.io/qwik": "^1.20.2",
+		"@preact/signals": "^2.11.3",
 		"@rollup/plugin-terser": "^0.4.4",
+		"better-auth": "^1.7.7",
 		"hono": "^4.4.0",
 		"itty-router": "^4.0.0",
 		"mitata": "^0.1.11",
+		"preact": "^11.0.1",
+		"react": "^19.3.1",
 		"rollup": "^4.20.0",
 		"rollup-plugin-bundle-size": "^1.0.3",
+		"solid-js": "^1.9.17",
+		"svelte": "^5.57.2",
 		"trouter": "^3.2.0",
-		"uqry": "^0.1.1",
-		"@aws-sdk/client-s3": "^3.1147.0",
-		"@aws-sdk/s3-request-presigner": "^3.1147.0",
+		"typescript": "^5.9.3",
+		"uele": "^0.10.2",
+		"ulive": "^1.0.7",
 		"umosql": "0.3.1",
-		"typescript": "^5.9.3"
+		"uqry": "^0.1.1",
+		"vue": "^3.5.44"
 	},
 	"keywords": [
 		"router",
@@ -176,10 +255,10 @@
 	},
 	"homepage": "https://github.com/kethan/uflite#readme",
 	"peerDependencies": {
-		"umosql": "0.3.1",
 		"@aws-sdk/client-s3": "^3.1147.0",
 		"@aws-sdk/s3-request-presigner": "^3.1147.0",
 		"better-auth": "^1.7.7",
+		"umosql": "0.3.1",
 		"uqry": "^0.1.1"
 	},
 	"peerDependenciesMeta": {
@@ -198,5 +277,6 @@
 		"uqry": {
 			"optional": true
 		}
-	}
+	},
+	"dependencies": {}
 }
